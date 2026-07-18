@@ -1,0 +1,6 @@
+# uvicorn[standard]가 websockets를 포함하므로 WebSocket용 별도 의존성은 불필요.
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+sqlalchemy==2.0.51
+jinja2==3.1.5
+qrcode[pil]==8.0

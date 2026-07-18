@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>발견 신고 채팅</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body class="chat-body">
+  <header class="chat-header">
+    <span class="chat-title">아이 발견 신고 채팅방</span>
+    <span id="connStatus" class="conn-status conn-connecting">연결 중…</span>
+  </header>
+
+  <div id="messages" class="messages" aria-live="polite"></div>
+
+  <!-- 위치 공유 버튼: 발견자 화면에서만 표시된다(JS가 role을 보고 노출 결정). -->
+  <div id="locationBar" class="location-bar" hidden>
+    <button id="shareLocationBtn" type="button" class="btn-location">
+      📍 내 위치 공유하기
+    </button>
+  </div>
+
+  <form id="chatForm" class="chat-input-bar" autocomplete="off">
+    <input
+      id="msgInput"
+      class="msg-input"
+      type="text"
+      placeholder="메시지를 입력하세요"
+      maxlength="1000"
+      required
+    />
+    <button type="submit" class="btn-send">전송</button>
+  </form>
+
+  <script>
+    // 서버가 주입하는 채팅 설정. 실명·전화번호는 포함하지 않는다.
+    window.CHAT_CONFIG = {
+      roomId: "{{ room_id }}",
+      role: "{{ role }}",
+      wsUrl: "{{ ws_url }}",
+    };
+  </script>
+  <script src="/static/chat.js"></script>
+</body>
+</html>

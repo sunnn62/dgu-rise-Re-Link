@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>아이 발견 신고</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <!-- 위급 상황 안내: 화면 상단 고정 -->
+  <div class="emergency-bar">
+    ⚠️ 위험한 상황이면 채팅 전에 먼저 <strong>112</strong>에 신고해주세요
+  </div>
+
+  <main class="landing">
+    <div class="landing-card">
+      <div class="landing-icon">🧒</div>
+      <h1>아이를 발견하셨나요?</h1>
+      <p class="landing-desc">
+        아래 버튼을 누르면 보호자에게 즉시 알림이 가고, 실시간 채팅이 시작됩니다.<br />
+        아이의 개인정보(이름·연락처 등)는 공개되지 않습니다.
+      </p>
+
+      <button id="startBtn" class="btn-primary">
+        아이를 발견했어요, 보호자와 연결하기
+      </button>
+
+      <p id="statusMsg" class="status-msg" role="status" aria-live="polite"></p>
+    </div>
+  </main>
+
+  <script>
+    // 서버가 주입한 값. qr_token은 URL 노출용 랜덤 토큰이며 아이 정보를 담지 않는다.
+    const QR_TOKEN = "{{ qr_token }}";
+    const startBtn = document.getElementById("startBtn");
+    const statusMsg = document.getElementById("statusMsg");
+
+    startBtn.addEventListener("click", async () => {
+      startBtn.disabled = true;
+      statusMsg.textContent = "보호자에게 알림을 보내고 채팅방을 준비하고 있어요...";
+      try {
+        const res = await fetch(`/found/${QR_TOKEN}/start`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: "{}",
+        });
+        if (!res.ok) {
+          throw new Error(`서버 응답 오류 (${res.status})`);
+        }
+        const data = await res.json();
+        // 발견자용 채팅 화면으로 이동.
+        window.location.href = data.chat_url;
+      } catch (err) {
+        statusMsg.textContent =
+          "연결에 실패했습니다. 잠시 후 다시 시도해주세요. (" + err.message + ")";
+        startBtn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
