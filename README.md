@@ -18,14 +18,14 @@
 ### 의존성 설치 (최초 1회, 또는 새 환경에서)
 
 ```powershell
-cd "c:\Users\Mint\OneDrive\바탕 화면\medical-ai-hackathon\relink\missing-child-chat"
+cd "c:\Users\Mint\OneDrive\바탕 화면\medical-ai-hackathon\relink"
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
 
 ### 서버 실행
 
 ```powershell
-cd "c:\Users\Mint\OneDrive\바탕 화면\medical-ai-hackathon\relink\missing-child-chat"
+cd "c:\Users\Mint\OneDrive\바탕 화면\medical-ai-hackathon\relink"
 .\.venv\Scripts\python.exe -m uvicorn main:app --reload --host 127.0.0.1 --port 8000
 ```
 
@@ -195,13 +195,14 @@ API 키는 코드에 하드코딩하지 말고 환경변수로 주입하세요.
 ## 7. 파일 구조
 
 ```
-missing-child-chat/
+relink/
+├── PLAN.md                 # 프로젝트 실행 계획
 ├── main.py                 # FastAPI 앱, 모든 라우트 + WebSocket 핸들러
-├── models.py               # SQLAlchemy 모델 (Child / ChatRoom / Message)
-├── database.py             # DB 엔진·세션 설정
-├── websocket_manager.py    # room별 WebSocket 커넥션 관리
-├── sms.py                  # SMS 발송 인터페이스 (목업)
-├── qr_utils.py             # QR 코드 생성
+├── models.py                # SQLAlchemy 모델 (Child / ChatRoom / Message)
+├── database.py               # DB 엔진·세션 설정
+├── websocket_manager.py       # room별 WebSocket 커넥션 관리
+├── sms.py                    # SMS 발송 인터페이스 (목업)
+├── qr_utils.py                # QR 코드 생성
 ├── templates/
 │   ├── found_landing.html  # 발견 신고 랜딩 페이지
 │   └── chat.html           # 채팅 화면 (발견자/보호자 공용)
