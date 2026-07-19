@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>보호자 관리 — Re:Link</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header class="dashboard-header">
+    <h1 class="dashboard-title">Re:Link 보호자 관리</h1>
+    <p class="dashboard-subtitle">{{ guardian_name }}님, 안녕하세요</p>
+  </header>
+
+  <main class="dashboard-main">
+    <!-- 아이 목록 -->
+    {% if children %}
+    <section class="children-list">
+      {% for child in children %}
+      <div class="child-card">
+        <div class="child-info">
+          <span class="child-name">{{ child.name }}</span>
+          <span class="status-badge {% if child.status == 'missing' %}badge-danger{% else %}badge-success{% endif %}">
+            {% if child.status == 'missing' %}실종{% else %}정상{% endif %}
+          </span>
+        </div>
+        <div class="child-actions">
+          <form action="/guardian/{{ manage_token }}/children/{{ child.id }}/toggle" method="post" class="inline-form">
+            <button type="submit" class="btn-toggle {% if child.status == 'missing' %}btn-toggle-normal{% else %}btn-toggle-missing{% endif %}">
+              {% if child.status == 'missing' %}정상으로 변경{% else %}실종 신고{% endif %}
+            </button>
+          </form>
+          <a href="/admin/children/{{ child.qr_token }}/qr" class="btn-qr" download>QR 다운로드</a>
+          <form action="/guardian/{{ manage_token }}/children/{{ child.id }}/delete" method="post" class="inline-form">
+            <button type="submit" class="btn-delete" onclick="return confirm('정말 삭제하시겠습니까?')">삭제</button>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
+    </section>
+    {% else %}
+    <div class="empty-state">
+      <p class="empty-icon">👶</p>
+      <p class="empty-text">등록된 아이가 없습니다</p>
+      <p class="empty-sub">아래에서 아이를 추가해 주세요.</p>
+    </div>
+    {% endif %}
+
+    <!-- 아이 추가 폼 -->
+    <section class="add-child-section">
+      <h2 class="section-title">아이 추가</h2>
+      <form class="add-child-form" action="/guardian/{{ manage_token }}/children" method="post">
+        <input
+          name="child_name"
+          class="form-input add-child-input"
+          type="text"
+          placeholder="아이 이름을 입력하세요"
+          required
+          maxlength="100"
+        />
+        <button type="submit" class="btn-primary btn-add">+ 아이 추가하기</button>
+      </form>
+    </section>
+  </main>
+</body>
+</html>
