@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>보호자 등록 — Re:Link</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <main class="landing">
+    <div class="landing-card">
+      <div class="landing-icon">🛡️</div>
+      <h1>보호자 등록</h1>
+      <p class="landing-desc">
+        Re:Link 서비스에 보호자로 등록하면 아이의 QR 코드를 관리하고,<br />
+        발견 알림을 받을 수 있습니다.
+      </p>
+
+      <form class="register-form" action="/register" method="post">
+        <label class="form-label" for="guardian_name">보호자 이름</label>
+        <input
+          id="guardian_name"
+          name="guardian_name"
+          class="form-input"
+          type="text"
+          placeholder="홍길동"
+          required
+          maxlength="100"
+        />
+
+        <label class="form-label" for="guardian_phone">전화번호</label>
+        <input
+          id="guardian_phone"
+          name="guardian_phone"
+          class="form-input"
+          type="tel"
+          placeholder="010-0000-0000"
+          pattern="01[0-9]-\d{3,4}-\d{4}"
+          required
+          maxlength="13"
+        />
+
+        <button type="submit" class="btn-primary register-btn">등록하기</button>
+      </form>
+
+      <p id="statusMsg" class="status-msg" role="status" aria-live="polite"></p>
+    </div>
+  </main>
+</body>
+</html>
