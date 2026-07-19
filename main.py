@@ -533,3 +533,115 @@ def _parse_coordinates(payload: dict) -> tuple[float, float] | None:
         return None
 
     return latitude, longitude
+
+
+# ---------------------------------------------------------------------------
+# 보호자 자가 등록 & 대시보드 (프론트 목업 — Guardian API 완성 후 교체 예정)
+# ---------------------------------------------------------------------------
+
+# In-memory mock data for frontend development
+_mock_guardians: dict = {}
+_mock_children_by_guardian: dict = {}
+
+
+@app.get("/register", response_class=HTMLResponse)
+def register_page(request: Request):
+    """보호자 자가 등록 폼."""
+    return templates.TemplateResponse(request, "register.html", {})
+
+
+@app.post("/register")
+async def register_submit(request: Request):
+    """보호자 등록 처리 (목업: 전화번호 기반 Guardian 조회/생성)."""
+    from starlette.responses import RedirectResponse
+
+    form = await request.form()
+    guardian_name = form.get("guardian_name", "보호자")
+    guardian_phone = form.get("guardian_phone", "")
+
+    # 전화번호 기반으로 기존 토큰 조회 또는 새로 생성
+    if guardian_phone in _mock_guardians:
+        manage_token = _mock_guardians[guardian_phone]
+    else:
+        manage_token = secrets.token_urlsafe(16)
+        _mock_guardians[guardian_phone] = manage_token
+        _mock_children_by_guardian[manage_token] = {
+            "name": guardian_name,
+            "children": [],
+        }
+
+    return RedirectResponse(url=f"/guardian/{manage_token}", status_code=303)
+
+
+@app.get("/guardian/{manage_token}", response_class=HTMLResponse)
+def guardian_dashboard(request: Request, manage_token: str):
+    """보호자 관리 대시보드 (목업 데이터)."""
+    # 실제 등록 데이터가 있으면 사용, 아니면 데모용 목업 데이터 표시
+    if manage_token in _mock_children_by_guardian:
+        data = _mock_children_by_guardian[manage_token]
+        guardian_name = data["name"]
+        children = data["children"]
+    else:
+        # 목업 데이터 (프론트엔드 개발/데모용)
+        guardian_name = "김보호자"
+        children = [
+            {"id": "1", "name": "김민준", "status": "normal", "qr_token": "mock-token-1"},
+            {"id": "2", "name": "김서연", "status": "missing", "qr_token": "mock-token-2"},
+        ]
+
+    return templates.TemplateResponse(request, "guardian_dashboard.html", {
+        "manage_token": manage_token,
+        "guardian_name": guardian_name,
+        "children": children,
+    })
+
+
+@app.post("/guardian/{manage_token}/children")
+async def guardian_add_child(request: Request, manage_token: str):
+    """아이 추가 (목업)."""
+    from starlette.responses import RedirectResponse
+
+    form = await request.form()
+    child_name = form.get("child_name", "새 아이")
+
+    if manage_token in _mock_children_by_guardian:
+        children = _mock_children_by_guardian[manage_token]["children"]
+        new_id = str(len(children) + 1)
+        qr_token = secrets.token_urlsafe(16)
+        children.append({
+            "id": new_id,
+            "name": child_name,
+            "status": "normal",
+            "qr_token": qr_token,
+        })
+
+    return RedirectResponse(url=f"/guardian/{manage_token}", status_code=303)
+
+
+@app.post("/guardian/{manage_token}/children/{child_id}/toggle")
+async def guardian_toggle_status(request: Request, manage_token: str, child_id: str):
+    """아이 상태 토글 (목업)."""
+    from starlette.responses import RedirectResponse
+
+    if manage_token in _mock_children_by_guardian:
+        children = _mock_children_by_guardian[manage_token]["children"]
+        for child in children:
+            if child["id"] == child_id:
+                child["status"] = "normal" if child["status"] == "missing" else "missing"
+                break
+
+    return RedirectResponse(url=f"/guardian/{manage_token}", status_code=303)
+
+
+@app.post("/guardian/{manage_token}/children/{child_id}/delete")
+async def guardian_delete_child(request: Request, manage_token: str, child_id: str):
+    """아이 삭제 (목업)."""
+    from starlette.responses import RedirectResponse
+
+    if manage_token in _mock_children_by_guardian:
+        children = _mock_children_by_guardian[manage_token]["children"]
+        _mock_children_by_guardian[manage_token]["children"] = [
+            c for c in children if c["id"] != child_id
+        ]
+
+    return RedirectResponse(url=f"/guardian/{manage_token}", status_code=303)
