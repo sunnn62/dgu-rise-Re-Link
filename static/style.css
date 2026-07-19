@@ -9,8 +9,8 @@
 
 :root {
   --bg: #b2c7d9;
-  --primary: #ff5a5f;
-  --primary-dark: #e04146;
+  --primary: #10b981;
+  --primary-dark: #059669;
   --bubble-mine: #fee500;
   --bubble-theirs: #ffffff;
   --text: #222;
@@ -283,5 +283,297 @@ body {
 }
 
 .btn-send:hover {
+  background: var(--primary-dark);
+}
+
+/* ---------- 공통 색상 (보호자 페이지) ---------- */
+:root {
+  --blue: #059669;
+  --blue-dark: #047857;
+  --green: #10b981;
+  --green-dark: #059669;
+  --red: #ef4444;
+  --red-dark: #dc2626;
+  --gray-50: #f9fafb;
+  --gray-100: #f3f4f6;
+  --gray-200: #e5e7eb;
+  --gray-500: #6b7280;
+  --gray-700: #374151;
+  --gray-900: #111827;
+}
+
+/* ---------- 보호자 등록 폼 ---------- */
+.register-form {
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.form-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--gray-700);
+  margin-bottom: -4px;
+}
+
+.form-input {
+  width: 100%;
+  padding: 14px 16px;
+  font-size: 16px;
+  border: 1px solid var(--gray-200);
+  border-radius: 10px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.form-input:focus {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.register-btn {
+  margin-top: 8px;
+  background: var(--blue);
+}
+
+.register-btn:hover {
+  background: var(--blue-dark);
+}
+
+/* ---------- 보호자 대시보드 ---------- */
+.dashboard-header {
+  background: var(--blue);
+  color: #fff;
+  padding: 24px 20px 20px;
+  text-align: center;
+}
+
+.dashboard-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.dashboard-subtitle {
+  font-size: 14px;
+  opacity: 0.85;
+}
+
+.dashboard-main {
+  padding: 20px 16px;
+  max-width: 540px;
+  margin: 0 auto;
+}
+
+/* ---------- 아이 카드 목록 ---------- */
+.children-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+.child-card {
+  background: #fff;
+  border: 1px solid var(--gray-200);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.child-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.child-name {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--gray-900);
+}
+
+.status-badge {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 20px;
+  text-transform: uppercase;
+}
+
+.badge-success {
+  background: #d1fae5;
+  color: var(--green-dark);
+}
+
+.badge-danger {
+  background: #fee2e2;
+  color: var(--red-dark);
+}
+
+.child-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.inline-form {
+  display: inline;
+}
+
+.btn-toggle {
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  min-height: 48px;
+  transition: background 0.15s;
+}
+
+.btn-toggle-normal {
+  background: #d1fae5;
+  color: var(--green-dark);
+}
+
+.btn-toggle-normal:hover {
+  background: #a7f3d0;
+}
+
+.btn-toggle-missing {
+  background: #fee2e2;
+  color: var(--red-dark);
+}
+
+.btn-toggle-missing:hover {
+  background: #fecaca;
+}
+
+.btn-qr {
+  display: inline-flex;
+  align-items: center;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--blue);
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  text-decoration: none;
+  min-height: 48px;
+  transition: background 0.15s;
+}
+
+.btn-qr:hover {
+  background: #dbeafe;
+}
+
+.btn-delete {
+  display: inline-flex;
+  align-items: center;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--red-dark);
+  background: #fee2e2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  cursor: pointer;
+  min-height: 48px;
+  transition: background 0.15s;
+}
+
+.btn-delete:hover {
+  background: #fecaca;
+}
+
+/* ---------- 빈 상태 ---------- */
+.empty-state {
+  text-align: center;
+  padding: 40px 16px;
+}
+
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+}
+
+.empty-text {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--gray-700);
+  margin-bottom: 4px;
+}
+
+.empty-sub {
+  font-size: 14px;
+  color: var(--gray-500);
+}
+
+/* ---------- 아이 추가 섹션 ---------- */
+.add-child-section {
+  border-top: 1px solid var(--gray-200);
+  padding-top: 20px;
+}
+
+.section-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--gray-900);
+  margin-bottom: 12px;
+}
+
+.add-child-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.add-child-input {
+  width: 100%;
+  padding: 14px 16px;
+  font-size: 16px;
+}
+
+.btn-add {
+  width: 100%;
+  padding: 16px 24px;
+  font-size: 16px;
+  font-weight: 700;
+  border-radius: 10px;
+  background: var(--blue);
+  min-height: 48px;
+}
+
+.btn-add:hover {
+  background: var(--blue-dark);
+}
+
+/* ---------- 반응형 ---------- */
+@media (max-width: 480px) {
+  .child-actions {
+    flex-direction: column;
+  }
+
+  .btn-toggle,
+  .btn-qr {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+  }
+}
+
+
+/* ---------- 발견 랜딩 추가 스타일 ---------- */
+.btn-found {
+  background: var(--primary);
+  min-height: 48px;
+}
+
+.btn-found:hover {
   background: var(--primary-dark);
 }
