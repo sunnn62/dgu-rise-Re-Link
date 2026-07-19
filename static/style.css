@@ -292,6 +292,7 @@ body {
   --blue-dark: #047857;
   --green: #10b981;
   --green-dark: #059669;
+  --warm-bg: #FAFAF7;
   --red: #ef4444;
   --red-dark: #dc2626;
   --gray-50: #f9fafb;
@@ -376,119 +377,157 @@ body {
 
 .child-card {
   background: #fff;
-  border: 1px solid var(--gray-200);
-  border-radius: 12px;
-  padding: 16px;
+  border: 1px solid #E4E0D0;
+  border-radius: 14px;
+  padding: 18px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
-.child-info {
+.child-card-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
 .child-name {
   font-size: 17px;
-  font-weight: 600;
-  color: var(--gray-900);
-}
-
-.status-badge {
-  display: inline-block;
-  font-size: 12px;
   font-weight: 700;
-  padding: 4px 10px;
-  border-radius: 20px;
-  text-transform: uppercase;
-}
-
-.badge-success {
-  background: #d1fae5;
-  color: var(--green-dark);
-}
-
-.badge-danger {
-  background: #fee2e2;
-  color: var(--red-dark);
-}
-
-.child-actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
+  color: var(--gray-900);
 }
 
 .inline-form {
   display: inline;
 }
 
-.btn-toggle {
-  padding: 10px 16px;
-  font-size: 14px;
-  font-weight: 600;
+.btn-delete-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
   border: none;
   border-radius: 8px;
+  background: transparent;
+  color: var(--gray-500);
   cursor: pointer;
-  min-height: 48px;
-  transition: background 0.15s;
+  transition: background 0.15s, color 0.15s;
 }
 
-.btn-toggle-normal {
-  background: #d1fae5;
-  color: var(--green-dark);
-}
-
-.btn-toggle-normal:hover {
-  background: #a7f3d0;
-}
-
-.btn-toggle-missing {
-  background: #fee2e2;
+.btn-delete-icon:hover {
+  background: #FBE3DF;
   color: var(--red-dark);
 }
 
-.btn-toggle-missing:hover {
-  background: #fecaca;
+/* 실종 신고 상태 행 */
+.child-status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: var(--warm-bg);
+  border-radius: 10px;
+  margin-bottom: 12px;
 }
 
-.btn-qr {
-  display: inline-flex;
-  align-items: center;
-  padding: 10px 16px;
+.status-row-label {
   font-size: 14px;
   font-weight: 600;
-  color: var(--blue);
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
-  border-radius: 8px;
+  color: var(--gray-700);
+}
+
+.toggle-form {
+  display: flex;
+}
+
+/* ON/OFF 토글 스위치 */
+.toggle-switch {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 64px;
+  height: 32px;
+  padding: 0 6px;
+  border: none;
+  border-radius: 16px;
+  background: var(--gray-200);
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.toggle-switch.is-on {
+  background: var(--red);
+  justify-content: flex-end;
+}
+
+.toggle-switch:not(.is-on) {
+  justify-content: flex-start;
+}
+
+.toggle-knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  transition: transform 0.2s ease;
+}
+
+.toggle-switch.is-on .toggle-knob {
+  transform: translateX(32px);
+}
+
+.toggle-switch-label-off,
+.toggle-switch-label-on {
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  z-index: 1;
+  line-height: 1;
+}
+
+.toggle-switch:not(.is-on) .toggle-switch-label-off {
+  color: var(--gray-500);
+  margin-left: 26px;
+}
+
+.toggle-switch:not(.is-on) .toggle-switch-label-on {
+  display: none;
+}
+
+.toggle-switch.is-on .toggle-switch-label-off {
+  display: none;
+}
+
+.toggle-switch.is-on .toggle-switch-label-on {
+  margin-right: 26px;
+}
+
+/* QR 다운로드 — 눈에 띄는 버튼 */
+.btn-qr-prominent {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 13px 16px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--blue-dark);
+  background: #EEF1E4;
+  border: 1.5px solid var(--blue);
+  border-radius: 10px;
   text-decoration: none;
   min-height: 48px;
   transition: background 0.15s;
 }
 
-.btn-qr:hover {
-  background: #dbeafe;
-}
-
-.btn-delete {
-  display: inline-flex;
-  align-items: center;
-  padding: 10px 16px;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--red-dark);
-  background: #fee2e2;
-  border: 1px solid #fecaca;
-  border-radius: 8px;
-  cursor: pointer;
-  min-height: 48px;
-  transition: background 0.15s;
-}
-
-.btn-delete:hover {
-  background: #fecaca;
+.btn-qr-prominent:hover {
+  background: #E3E8D5;
 }
 
 /* ---------- 빈 상태 ---------- */
@@ -554,19 +593,6 @@ body {
 }
 
 /* ---------- 반응형 ---------- */
-@media (max-width: 480px) {
-  .child-actions {
-    flex-direction: column;
-  }
-
-  .btn-toggle,
-  .btn-qr {
-    width: 100%;
-    justify-content: center;
-    text-align: center;
-  }
-}
-
 
 /* ---------- 발견 랜딩 추가 스타일 ---------- */
 .btn-found {

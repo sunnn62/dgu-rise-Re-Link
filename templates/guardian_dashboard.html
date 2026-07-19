@@ -18,23 +18,30 @@
     <section class="children-list">
       {% for child in children %}
       <div class="child-card">
-        <div class="child-info">
+        <div class="child-card-top">
           <span class="child-name">{{ child.name }}</span>
-          <span class="status-badge {% if child.status == 'missing' %}badge-danger{% else %}badge-success{% endif %}">
-            {% if child.status == 'missing' %}실종{% else %}정상{% endif %}
-          </span>
-        </div>
-        <div class="child-actions">
-          <form action="/guardian/{{ manage_token }}/children/{{ child.id }}/toggle" method="post" class="inline-form">
-            <button type="submit" class="btn-toggle {% if child.status == 'missing' %}btn-toggle-normal{% else %}btn-toggle-missing{% endif %}">
-              {% if child.status == 'missing' %}정상으로 변경{% else %}실종 신고{% endif %}
+          <form action="/guardian/{{ manage_token }}/children/{{ child.id }}/delete" method="post" class="inline-form">
+            <button type="submit" class="btn-delete-icon" onclick="return confirm('정말 삭제하시겠습니까?')" aria-label="아이 삭제" title="삭제">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m5 0V4a2 2 0 0 1 2-2h0a2 2 0 0 1 2 2v2"></path></svg>
             </button>
           </form>
-          <a href="/admin/children/{{ child.qr_token }}/qr" class="btn-qr" download>QR 다운로드</a>
-          <form action="/guardian/{{ manage_token }}/children/{{ child.id }}/delete" method="post" class="inline-form">
-            <button type="submit" class="btn-delete" onclick="return confirm('정말 삭제하시겠습니까?')">삭제</button>
+        </div>
+
+        <div class="child-status-row">
+          <span class="status-row-label">실종 신고</span>
+          <form action="/guardian/{{ manage_token }}/children/{{ child.id }}/toggle" method="post" class="inline-form toggle-form">
+            <button type="submit" class="toggle-switch {% if child.status == 'missing' %}is-on{% endif %}" aria-pressed="{% if child.status == 'missing' %}true{% else %}false{% endif %}">
+              <span class="toggle-switch-label-off">OFF</span>
+              <span class="toggle-knob"></span>
+              <span class="toggle-switch-label-on">ON</span>
+            </button>
           </form>
         </div>
+
+        <a href="/admin/children/{{ child.qr_token }}/qr" class="btn-qr-prominent" download>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect><line x1="14" y1="14" x2="14" y2="21"></line><line x1="21" y1="14" x2="21" y2="21"></line><line x1="14" y1="17.5" x2="21" y2="17.5"></line></svg>
+          <span>QR 코드 다운로드</span>
+        </a>
       </div>
       {% endfor %}
     </section>
