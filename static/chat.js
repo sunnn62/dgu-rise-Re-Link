@@ -148,6 +148,8 @@
       reconnectCount = 0;
       setStatus("연결됨", "conn-ok");
       inputEl.disabled = false;
+      // [GAP B] finder는 위치를 공유하기 전까지 이미 hideChatInput()으로
+      // 입력 폼 자체가 숨겨져 있으므로 disabled 해제와 무관하게 입력 불가능하다.
     };
 
     ws.onmessage = function (event) {
@@ -197,55 +199,107 @@
     inputEl.focus();
   });
 
-  // ---------- 위치 공유(발견자 전용) ----------
-  const locationBar = document.getElementById("locationBar");
+  // ---------- [GAP B] 위치-잠금 게이트 + 112 신고 경로 (발견자 전용) ----------
+  const locationGate = document.getElementById("locationGate");
+  const emergencyPanel = document.getElementById("emergencyPanel");
   const shareLocationBtn = document.getElementById("shareLocationBtn");
+  const emergency112Btn = document.getElementById("emergency112Btn");
+  const backToLocationGateBtn = document.getElementById("backToLocationGateBtn");
 
-  // 발견자에게만 위치 공유 버튼을 노출한다.
-  if (config.role === "finder" && locationBar) {
-    locationBar.hidden = false;
+  let locationShared = false;
+
+  function showChatInput() {
+    formEl.hidden = false;
+  }
+
+  function hideChatInput() {
+    formEl.hidden = true;
+  }
+
+  function showLocationGate() {
+    if (locationGate) locationGate.hidden = false;
+    if (emergencyPanel) emergencyPanel.hidden = true;
+    hideChatInput();
+  }
+
+  function showEmergencyPanel() {
+    if (locationGate) locationGate.hidden = true;
+    if (emergencyPanel) emergencyPanel.hidden = false;
+    hideChatInput();
+  }
+
+  function unlockChatAfterLocation() {
+    locationShared = true;
+    if (locationGate) locationGate.hidden = true;
+    if (emergencyPanel) emergencyPanel.hidden = true;
+    showChatInput();
+  }
+
+  if (config.role === "guardian") {
+    // 보호자는 위치-잠금이 적용되지 않는다. 연결되면 곧바로 입력창을 연다.
+    showChatInput();
+  } else {
+    // 발견자는 위치를 공유하기 전까지 채팅 입력창을 볼 수 없다.
+    showLocationGate();
+  }
+
+  function requestAndShareLocation() {
+    if (!("geolocation" in navigator)) {
+      renderSystem("이 브라우저는 위치 기능을 지원하지 않습니다.");
+      return;
+    }
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      renderSystem("연결된 후에 위치를 공유할 수 있습니다.");
+      return;
+    }
+
+    shareLocationBtn.disabled = true;
+    shareLocationBtn.textContent = "📍 위치 확인 중…";
+
+    navigator.geolocation.getCurrentPosition(
+      function (position) {
+        ws.send(
+          JSON.stringify({
+            type: "location",
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          })
+        );
+        shareLocationBtn.disabled = false;
+        shareLocationBtn.textContent = "📍 위치 공유하고 채팅 시작";
+        unlockChatAfterLocation();
+      },
+      function (error) {
+        let reason = "위치를 가져오지 못했습니다.";
+        if (error.code === error.PERMISSION_DENIED) {
+          reason = "위치 권한이 거부되었습니다. 브라우저 설정에서 허용해주세요.";
+        } else if (error.code === error.TIMEOUT) {
+          reason = "위치 확인 시간이 초과되었습니다. 다시 시도해주세요.";
+        }
+        renderSystem(reason);
+        shareLocationBtn.disabled = false;
+        shareLocationBtn.textContent = "📍 위치 공유하고 채팅 시작";
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
   }
 
   if (shareLocationBtn) {
-    shareLocationBtn.addEventListener("click", function () {
-      if (!("geolocation" in navigator)) {
-        renderSystem("이 브라우저는 위치 기능을 지원하지 않습니다.");
-        return;
-      }
-      if (!ws || ws.readyState !== WebSocket.OPEN) {
-        renderSystem("연결된 후에 위치를 공유할 수 있습니다.");
-        return;
-      }
+    shareLocationBtn.addEventListener("click", requestAndShareLocation);
+  }
 
-      shareLocationBtn.disabled = true;
-      shareLocationBtn.textContent = "📍 위치 확인 중…";
+  if (emergency112Btn) {
+    emergency112Btn.addEventListener("click", function () {
+      // [알려진 갭] 112 경로는 현재 클라이언트 UI 안내만 제공한다. 백엔드에 별도
+      // 신고 처리 API/메시지 타입이 없으므로 서버에는 아무것도 전송하지 않는다.
+      // (PLAN.md "112 신고 대체 경로" — 서버 쪽 시스템 메시지 통지는 추후 백엔드 작업)
+      showEmergencyPanel();
+    });
+  }
 
-      navigator.geolocation.getCurrentPosition(
-        function (position) {
-          ws.send(
-            JSON.stringify({
-              type: "location",
-              latitude: position.coords.latitude,
-              longitude: position.coords.longitude,
-            })
-          );
-          shareLocationBtn.disabled = false;
-          shareLocationBtn.textContent = "📍 내 위치 공유하기";
-        },
-        function (error) {
-          // 권한 거부/시간 초과 등. 사용자에게 원인을 안내한다.
-          let reason = "위치를 가져오지 못했습니다.";
-          if (error.code === error.PERMISSION_DENIED) {
-            reason = "위치 권한이 거부되었습니다. 브라우저 설정에서 허용해주세요.";
-          } else if (error.code === error.TIMEOUT) {
-            reason = "위치 확인 시간이 초과되었습니다. 다시 시도해주세요.";
-          }
-          renderSystem(reason);
-          shareLocationBtn.disabled = false;
-          shareLocationBtn.textContent = "📍 내 위치 공유하기";
-        },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-      );
+  if (backToLocationGateBtn) {
+    backToLocationGateBtn.addEventListener("click", function () {
+      showLocationGate();
     });
   }
 
