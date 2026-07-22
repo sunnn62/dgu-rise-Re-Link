@@ -8,13 +8,13 @@
 }
 
 :root {
-  --bg: #b2c7d9;
-  --primary: #ff5a5f;
-  --primary-dark: #e04146;
-  --bubble-mine: #fee500;
+  --bg: #cddbe6;
+  --primary: #9CB380;
+  --primary-dark: #7C9764;
+  --bubble-mine: #FCE8A8;
   --bubble-theirs: #ffffff;
-  --text: #222;
-  --muted: #667;
+  --text: #3A3A32;
+  --muted: #7A7A6E;
 }
 
 html,
@@ -23,6 +23,7 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "Malgun Gothic", "맑은 고딕",
     sans-serif;
   color: var(--text);
+  background: var(--warm-bg);
 }
 
 /* ---------- 발견 랜딩 페이지 ---------- */
@@ -30,7 +31,7 @@ body {
   position: sticky;
   top: 0;
   z-index: 10;
-  background: #c0392b;
+  background: #D97C72;
   color: #fff;
   text-align: center;
   padding: 12px 16px;
@@ -44,7 +45,7 @@ body {
   align-items: center;
   justify-content: center;
   padding: 24px 16px;
-  background: #f5f6f8;
+  background: var(--warm-bg);
 }
 
 .landing-card {
@@ -133,15 +134,15 @@ body {
 }
 
 .conn-ok {
-  background: #2ecc71;
+  background: #9CB380;
   color: #fff;
 }
 .conn-connecting {
-  background: #f39c12;
+  background: #E8C07D;
   color: #fff;
 }
 .conn-error {
-  background: #e74c3c;
+  background: #D97C72;
   color: #fff;
 }
 
@@ -284,4 +285,389 @@ body {
 
 .btn-send:hover {
   background: var(--primary-dark);
+}
+
+/* ---------- 공통 색상 (보호자 페이지) ---------- */
+:root {
+  --blue: #9CB380;
+  --blue-dark: #7C9764;
+  --green: #9CB380;
+  --green-dark: #7C9764;
+  --warm-bg: #FAFAF7;
+  --red: #F0A39A;
+  --red-dark: #D97C72;
+  --gray-50: #f9fafb;
+  --gray-100: #f3f4f6;
+  --gray-200: #e5e7eb;
+  --gray-500: #6b7280;
+  --gray-700: #374151;
+  --gray-900: #111827;
+}
+
+/* ---------- 보호자 등록 폼 ---------- */
+.register-form {
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.form-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--gray-700);
+  margin-bottom: -4px;
+}
+
+.form-input {
+  width: 100%;
+  padding: 14px 16px;
+  font-size: 16px;
+  border: 1px solid var(--gray-200);
+  border-radius: 10px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.form-input:focus {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(122, 132, 80, 0.15);
+}
+
+.register-btn {
+  margin-top: 8px;
+  background: var(--blue);
+}
+
+.register-btn:hover {
+  background: var(--blue-dark);
+}
+
+/* ---------- 보호자 대시보드 ---------- */
+.dashboard-header {
+  background: var(--blue-dark);
+  color: #fff;
+  padding: 24px 20px 20px;
+  text-align: center;
+}
+
+.dashboard-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.dashboard-subtitle {
+  font-size: 14px;
+  opacity: 0.85;
+}
+
+.dashboard-main {
+  padding: 20px 16px;
+  max-width: 540px;
+  margin: 0 auto;
+  background: var(--warm-bg);
+}
+
+/* ---------- 아이 카드 목록 ---------- */
+.children-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+.child-card {
+  background: #fff;
+  border: 1px solid #E4E0D0;
+  border-radius: 14px;
+  padding: 18px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.child-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.child-name {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--gray-900);
+}
+
+.inline-form {
+  display: inline;
+}
+
+.btn-delete-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--gray-500);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.btn-delete-icon:hover {
+  background: #FBE3DF;
+  color: var(--red-dark);
+}
+
+/* 실종 신고 상태 행 */
+.child-status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: var(--warm-bg);
+  border-radius: 10px;
+  margin-bottom: 12px;
+}
+
+.status-row-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--gray-700);
+}
+
+.toggle-form {
+  display: flex;
+}
+
+/* ON/OFF 토글 스위치 */
+.toggle-switch {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 64px;
+  height: 32px;
+  padding: 0 6px;
+  border: none;
+  border-radius: 16px;
+  background: var(--gray-200);
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.toggle-switch.is-on {
+  background: var(--red);
+  justify-content: flex-end;
+}
+
+.toggle-switch:not(.is-on) {
+  justify-content: flex-start;
+}
+
+.toggle-knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  transition: transform 0.2s ease;
+}
+
+.toggle-switch.is-on .toggle-knob {
+  transform: translateX(32px);
+}
+
+.toggle-switch-label-off,
+.toggle-switch-label-on {
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  z-index: 1;
+  line-height: 1;
+}
+
+.toggle-switch:not(.is-on) .toggle-switch-label-off {
+  color: var(--gray-500);
+  margin-left: 26px;
+}
+
+.toggle-switch:not(.is-on) .toggle-switch-label-on {
+  display: none;
+}
+
+.toggle-switch.is-on .toggle-switch-label-off {
+  display: none;
+}
+
+.toggle-switch.is-on .toggle-switch-label-on {
+  margin-right: 26px;
+}
+
+/* QR 다운로드 — 눈에 띄는 버튼 */
+.btn-qr-prominent {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 13px 16px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--blue-dark);
+  background: #EEF1E4;
+  border: 1.5px solid var(--blue);
+  border-radius: 10px;
+  text-decoration: none;
+  min-height: 48px;
+  transition: background 0.15s;
+}
+
+.btn-qr-prominent:hover {
+  background: #E3E8D5;
+}
+
+/* ---------- 빈 상태 ---------- */
+.empty-state {
+  text-align: center;
+  padding: 40px 16px;
+}
+
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+}
+
+.empty-text {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--gray-700);
+  margin-bottom: 4px;
+}
+
+.empty-sub {
+  font-size: 14px;
+  color: var(--gray-500);
+}
+
+/* ---------- 아이 추가 섹션 ---------- */
+.add-child-section {
+  border-top: 1px solid var(--gray-200);
+  padding-top: 20px;
+}
+
+.section-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--gray-900);
+  margin-bottom: 12px;
+}
+
+.add-child-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.add-child-input {
+  width: 100%;
+  padding: 14px 16px;
+  font-size: 16px;
+}
+
+.btn-add {
+  width: 100%;
+  padding: 16px 24px;
+  font-size: 16px;
+  font-weight: 700;
+  border-radius: 10px;
+  background: var(--blue);
+  min-height: 48px;
+}
+
+.btn-add:hover {
+  background: var(--blue-dark);
+}
+
+/* ---------- 반응형 ---------- */
+
+/* ---------- 발견 랜딩 추가 스타일 ---------- */
+.btn-found {
+  background: var(--primary);
+  min-height: 48px;
+}
+
+.btn-found:hover {
+  background: var(--primary-dark);
+}
+
+/* ---------- [Week1] 로그인/회원가입 오류 안내 ---------- */
+.form-error {
+  margin-top: 4px;
+  margin-bottom: 8px;
+  padding: 10px 14px;
+  font-size: 13.5px;
+  color: var(--red-dark);
+  background: #FBE3DF;
+  border-radius: 8px;
+  text-align: left;
+}
+
+.form-error a {
+  color: var(--red-dark);
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.form-divider {
+  border: none;
+  border-top: 1px solid var(--gray-200);
+  margin: 8px 0 4px;
+}
+
+/* ---------- [Week1] 대시보드 로그아웃 버튼 ---------- */
+.logout-form {
+  margin-top: 12px;
+}
+
+.btn-logout {
+  padding: 8px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.btn-logout:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* ---------- [Week1] 진행 중인 채팅방 입장 버튼 ---------- */
+.btn-active-room {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 13px 16px;
+  margin-bottom: 10px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--red-dark);
+  border-radius: 10px;
+  text-decoration: none;
+  min-height: 48px;
+}
+
+.btn-active-room:hover {
+  background: #C2685F;
 }

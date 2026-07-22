@@ -1,12 +1,30 @@
 """실종아동 QR 채팅 서비스의 SQLAlchemy ORM 모델.
 
+=== Week1 데이터 모델 (PLAN.md Week1 반영, 로그인+PIN 방식으로 개편) ===
+
+데이터 구조:
+- Guardian(보호자) 단위로 아이를 묶는다. 보호자 한 명이 여러 아이를 등록할 수 있다.
+- [Week1] 보호자 인증은 "관리 링크 소유"가 아니라 "전화번호(ID) + PIN(비밀번호) 로그인"
+  방식이다. 그래서 Guardian에는 manage_token이 없고, 대신 pin_hash와 로그인 시도
+  제한을 위한 failed_login_count/locked_until을 둔다. (PLAN "보호자 인증 방식(로그인+PIN)")
+- Child는 Guardian을 참조(guardian_id)하며, 평상시/실종 상태(status)를 가진다. (GAP A)
+- QrToken은 등록과 무관하게 미리 배치로 발급해두는 QR 풀이다. 로그인한 보호자가 아이를
+  추가할 때 스티커의 serial을 입력해 QrToken을 아이에게 연결(claim)한다.
+- [Week1] ChatRoom에는 더 이상 guardian_token이 없다. 예전에는 "방마다 발급되는
+  토�1큰 소유 = 보호자 인증"이었지만, 로그인 세션 도입으로 이 토큰이 없어졌다.
+  대신 보호자가 채팅방에 들어올 때마다 서버가 "이 방의 아이가 로그인한 보호자의
+  아이인가?"(child.guardian_id == session.guardian_id)를 매번 재검증한다(GAP B).
+
 보안 설계:
 - Child.qr_token은 URL에 노출되는 유일한 식별자이며, 아이 이름/보호자 정보를
   역추적할 수 없는 암호학적으로 안전한 랜덤 문자열(secrets.token_urlsafe)이다.
-- Child.id(내부 PK)는 절대 URL이나 API 응답에 노출하지 않는다.
-- guardian_phone 등 개인정보는 데모 단계에서는 평문 저장하지만, 실서비스
-  전환 시 반드시 암호화 저장(예: 애플리케이션 레벨 AES 암호화 또는 DB 컬럼
-  암호화)을 적용해야 한다. 아래 각 필드에 주석으로 명시해 둔다.
+- Child.id / Guardian.id(내부 PK)는 절대 URL이나 API 응답에 노출하지 않는다.
+- [Week1] Guardian.pin_hash: PIN을 평문으로 저장하지 않고 해싱해서 저장한다(auth.py).
+  6자리 이상 숫자 PIN + rate limit + 해싱 세 가지가 세트로 갖춰져야 최소 조건을
+  만족한다는 것이 PLAN의 명시적 결정이다. 실서비스 전환 시 2FA/표준 비밀번호
+  정책으로 강화가 필요하다.
+- Guardian.phone 등 개인정보는 데모 단계에서는 평문 저장하지만, 실서비스
+  전환 시 반드시 암호화 저장(예: 애플리케이션 레벨 AES-GCM)을 적용해야 한다.
 """
 
 from __future__ import annotations
@@ -14,7 +32,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, Float, ForeignKey, String, Text
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from database import Base
@@ -28,40 +46,114 @@ def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
+# [Week1] 보호자 인증 방식(로그인+PIN)
+class Guardian(Base):
+    """보호자. 전화번호(ID) + PIN(비밀번호)으로 로그인한다.
+
+    [Week1] 예전의 manage_token(관리 링크 소유 = 인증) 방식은 제거되었다. 이제
+    접근 수단은 로그인 세션뿐이며, 로그인 성공 시 발급되는 세션 토큰은 DB가
+    아니라 auth.py의 인메모리 세션 저장소에서 관리한다(3주 데모 범위).
+    """
+
+    __tablename__ = "guardians"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_new_uuid)
+    # TODO(보안): 실서비스 전환 시 phone은 반드시 암호화 저장할 것.
+    # 로그인 ID로 쓰이므로 전화번호는 유일해야 한다(unique). 가입 시 이미 있는
+    # 번호면 "이미 가입된 번호입니다, 로그인해주세요" 안내로 처리한다(main.py).
+    phone: Mapped[str] = mapped_column(String(20), unique=True, index=True)
+    name: Mapped[str] = mapped_column(String(100))
+    # [Week1] PIN(6자리 이상 숫자)의 해시값. 평문 PIN은 절대 저장하지 않는다.
+    # 해싱/검증 로직은 auth.py의 hash_pin/verify_pin이 담당한다.
+    pin_hash: Mapped[str] = mapped_column(String(255))
+    # [Week1] 로그인 무차별 대입 방지용 실패 횟수. 성공하면 0으로 리셋(auth.py).
+    failed_login_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    # [Week1] 5회 연속 실패 시 이 시각까지 로그인 자체를 거부한다(15분 잠금).
+    locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+    children: Mapped[list["Child"]] = relationship(
+        back_populates="guardian", cascade="all, delete-orphan"
+    )
+
+
 class Child(Base):
-    """등록된 아이 정보. qr_token만 외부에 노출되는 식별자다."""
+    """등록된 아이. qr_token만 외부에 노출되는 식별자다.
+
+    status:
+        - "normal": 평상시. QR을 스캔해도 채팅으로 이어지지 않는다.
+        - "missing": 실종 신고 상태. 이때만 QR 스캔이 채팅 시작으로 이어진다(GAP A).
+    """
 
     __tablename__ = "children"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_new_uuid)
     name: Mapped[str] = mapped_column(String(100))
-    # TODO(보안): 실서비스 전환 시 guardian_phone은 반드시 암호화 저장할 것
-    # (예: 애플리케이션 레벨 AES-GCM 암호화 후 저장, 조회 시 복호화).
-    guardian_phone: Mapped[str] = mapped_column(String(20))
-    guardian_name: Mapped[str] = mapped_column(String(100))
+    # [Week1] 채팅방 소유권 재검증(GAP B)의 기준이 되는 필드. 로그인한 보호자가
+    # 이 아이의 guardian_id와 일치해야만 채팅방/토글/삭제 등에 접근할 수 있다.
+    guardian_id: Mapped[str] = mapped_column(String(36), ForeignKey("guardians.id"), index=True)
+    # [Week1/GAP A] 평상시/실종 상태. 기본값은 normal(등록만 해두고 실종 신고는
+    # 하지 않은 상태). missing일 때만 QR 스캔이 채팅으로 이어진다.
+    status: Mapped[str] = mapped_column(String(20), default="normal")  # normal|missing
     # 아이 옷의 QR코드에 노출되는 값. id와 분리하여 이름/보호자 추적 불가하게 함.
+    # QrToken claim 흐름에서는 QrToken.qr_token 값을 그대로 복사해 채운다.
     qr_token: Mapped[str] = mapped_column(String(64), unique=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
-    chat_rooms: Mapped[list["ChatRoom"]] = relationship(back_populates="child")
+    guardian: Mapped["Guardian"] = relationship(back_populates="children")
+    chat_rooms: Mapped[list["ChatRoom"]] = relationship(
+        back_populates="child", cascade="all, delete-orphan"
+    )
+    qr_pool_entry: Mapped["QrToken | None"] = relationship(back_populates="child")
+
+
+class QrToken(Base):
+    """사전 인쇄용 QR 토큰 풀.
+
+    등록과 무관하게 배치로 미리 생성해두고(qr_token + 사람이 읽을 serial),
+    로그인한 보호자가 아이를 추가할 때 serial을 입력하면 해당 아이에 연결(claim)된다.
+    """
+
+    __tablename__ = "qr_tokens"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_new_uuid)
+    # URL에 쓰이는 긴 랜덤 문자열(Child.qr_token과 같은 역할).
+    qr_token: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    # 스티커에 인쇄할 짧은 코드. 사람이 눈으로 읽고 입력하므로 헷갈리는 문자는 제외한다.
+    serial: Mapped[str] = mapped_column(String(32), unique=True, index=True)
+    # 아직 등록되지 않은 토큰은 child_id가 NULL이다.
+    child_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("children.id"), nullable=True, unique=True
+    )
+    claimed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+    child: Mapped["Child | None"] = relationship(back_populates="qr_pool_entry")
 
 
 class ChatRoom(Base):
-    """발견자-보호자 간 채팅방. 24시간 경과 또는 관리자 종료 시 closed."""
+    """발견자-보호자 간 채팅방. 24시간 경과 또는 관리자 종료 시 closed.
+
+    [Week1 변경] 예전에는 이 모델에 guardian_token(방마다 발급되는 1회성 인증
+    토큰)이 있었다. 로그인+세션 방식으로 전환하면서 이 필드는 제거되었다 —
+    보호자 접근 여부는 이제 "로그인 세션의 guardian_id == 이 방의 child.guardian_id"
+    로 매번 재검증한다(main.py의 chat_page/chat_websocket, GAP B 참고).
+    """
 
     __tablename__ = "chat_rooms"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_new_uuid)
     child_id: Mapped[str] = mapped_column(String(36), ForeignKey("children.id"))
     status: Mapped[str] = mapped_column(String(20), default="waiting")  # waiting|active|closed
-    # 보호자 전용 1회성 인증 토큰. room_id와 별개로 발급해 URL 위조를 방지한다.
-    guardian_token: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    # 발견자가 위치를 공유했는지 여부(GAP B). finder는 위치 공유 전에는 텍스트를
+    # 보낼 수 없다. 보호자에게는 이 제약이 적용되지 않는다.
+    location_shared: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     child: Mapped["Child"] = relationship(back_populates="chat_rooms")
     messages: Mapped[list["Message"]] = relationship(
-        back_populates="room", order_by="Message.created_at"
+        back_populates="room", order_by="Message.created_at", cascade="all, delete-orphan"
     )
 
 

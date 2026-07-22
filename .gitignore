@@ -16,6 +16,10 @@ env/
 *.db
 *.sqlite3
 
+# 생성된 QR 배치 산출물 (generate_qr_batch.py 결과물 - 배포 도메인 확정 후 재생성 필요)
+qr_batch/
+qr_batch_*/
+
 # OS / editor
 .DS_Store
 Thumbs.db

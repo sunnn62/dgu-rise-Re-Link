@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>보호자 회원가입 — Re:Link</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <main class="landing">
+    <div class="landing-card">
+      <div class="landing-icon">🛡️</div>
+      <h1>보호자 회원가입</h1>
+      <p class="landing-desc">
+        Re:Link에 회원가입하면 아이의 QR 코드를 관리하고,<br />
+        발견 알림을 받을 수 있습니다.
+      </p>
+
+      {% if error == "missing_fields" %}
+      <p class="form-error" role="alert">모든 항목을 입력해 주세요.</p>
+      {% elif error == "invalid_pin" %}
+      <p class="form-error" role="alert">PIN은 숫자 6자리 이상으로 입력해 주세요.</p>
+      {% elif error == "phone_taken" %}
+      <p class="form-error" role="alert">
+        이미 가입된 번호입니다. <a href="/login">로그인해주세요</a>.
+      </p>
+      {% elif error == "invalid_serial" %}
+      <p class="form-error" role="alert">유효하지 않은 시리얼 번호입니다. 스티커에 적힌 번호를 다시 확인해 주세요.</p>
+      {% elif error == "serial_used" %}
+      <p class="form-error" role="alert">이미 등록된 QR입니다. 다른 시리얼 번호를 사용해 주세요.</p>
+      {% endif %}
+
+      <!-- [Week1] 전화번호(ID)+PIN(비밀번호) 방식 회원가입 폼.
+           최초 아이 1명은 회원가입과 함께 시리얼 번호로 등록한다(PLAN "최초 등록"). -->
+      <form class="register-form" action="/register" method="post">
+        <label class="form-label" for="guardian_name">보호자 이름</label>
+        <input
+          id="guardian_name"
+          name="guardian_name"
+          class="form-input"
+          type="text"
+          placeholder="홍길동"
+          required
+          maxlength="100"
+        />
+
+        <label class="form-label" for="guardian_phone">전화번호 (로그인 ID)</label>
+        <input
+          id="guardian_phone"
+          name="guardian_phone"
+          class="form-input"
+          type="tel"
+          placeholder="010-0000-0000"
+          pattern="01[0-9]-\d{3,4}-\d{4}"
+          required
+          maxlength="13"
+        />
+
+        <label class="form-label" for="guardian_pin">PIN (숫자 6자리 이상)</label>
+        <input
+          id="guardian_pin"
+          name="guardian_pin"
+          class="form-input"
+          type="password"
+          inputmode="numeric"
+          placeholder="숫자 6자리 이상"
+          pattern="[0-9]{6,}"
+          minlength="6"
+          required
+          autocomplete="new-password"
+        />
+
+        <hr class="form-divider" />
+
+        <label class="form-label" for="child_name">아이 이름</label>
+        <input
+          id="child_name"
+          name="child_name"
+          class="form-input"
+          type="text"
+          placeholder="아이 이름을 입력하세요"
+          required
+          maxlength="100"
+        />
+
+        <label class="form-label" for="serial">QR 스티커 시리얼 번호</label>
+        <input
+          id="serial"
+          name="serial"
+          class="form-input"
+          type="text"
+          placeholder="예: RL-AB2C-9KMP"
+          required
+          maxlength="32"
+        />
+
+        <button type="submit" class="btn-primary register-btn">회원가입 완료</button>
+      </form>
+
+      <p class="status-msg">
+        이미 계정이 있으신가요? <a href="/login">로그인</a>
+      </p>
+    </div>
+  </main>
+</body>
+</html>
