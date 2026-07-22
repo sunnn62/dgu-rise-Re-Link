@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>보호자 로그인 — Re:Link</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <!-- [Week1] 전화번호(ID)+PIN(비밀번호) 로그인 폼.
+       예전의 "관리 링크(manage_token) 소유 = 인증" 방식을 대체한다. -->
+  <main class="landing">
+    <div class="landing-card">
+      <div class="landing-icon">🔐</div>
+      <h1>보호자 로그인</h1>
+      <p class="landing-desc">전화번호와 PIN으로 로그인하세요.</p>
+
+      {% if error == "invalid_credentials" %}
+      <p class="form-error" role="alert">전화번호 또는 PIN이 올바르지 않습니다.</p>
+      {% elif error == "locked" %}
+      <p class="form-error" role="alert">
+        로그인 시도가 5회 실패하여 계정이 잠겼습니다. 약 {{ minutes }}분 후 다시 시도해 주세요.
+      </p>
+      {% endif %}
+
+      <form class="register-form" action="/login" method="post">
+        <label class="form-label" for="guardian_phone">전화번호</label>
+        <input
+          id="guardian_phone"
+          name="guardian_phone"
+          class="form-input"
+          type="tel"
+          placeholder="010-0000-0000"
+          required
+          maxlength="13"
+        />
+
+        <label class="form-label" for="guardian_pin">PIN</label>
+        <input
+          id="guardian_pin"
+          name="guardian_pin"
+          class="form-input"
+          type="password"
+          inputmode="numeric"
+          placeholder="숫자 6자리 이상"
+          minlength="6"
+          required
+          autocomplete="current-password"
+        />
+
+        <button type="submit" class="btn-primary register-btn">로그인</button>
+      </form>
+
+      <p class="status-msg">
+        <!-- [Week1] PIN 재설정(OTP)은 Week2 스코프. 지금은 안내만 표시한다. -->
+        PIN을 잊으셨나요? PIN 재설정 기능은 다음 업데이트에서 제공됩니다.
+      </p>
+      <p class="status-msg">
+        아직 계정이 없으신가요? <a href="/register">회원가입</a>
+      </p>
+    </div>
+  </main>
+</body>
+</html>
