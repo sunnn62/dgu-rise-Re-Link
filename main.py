@@ -933,7 +933,7 @@ def logout(request: Request) -> RedirectResponse:
 
 
 @app.get("/guardian/dashboard", response_class=HTMLResponse)
-def guardian_dashboard(request: Request, db: Session = Depends(get_db)):
+def guardian_dashboard(request: Request, error: str | None = None, db: Session = Depends(get_db)):
     """[Week1] 보호자 대시보드: 로그인한 보호자의 아이 목록 + 진행 중인 채팅방.
 
     로그인하지 않았으면 /login으로 리다이렉트한다. 예전의 /guardian/{manage_token}
@@ -988,7 +988,7 @@ def guardian_dashboard(request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse(
         request,
         "guardian_dashboard.html",
-        {"guardian_name": guardian.name, "children": children_display},
+        {"guardian_name": guardian.name, "children": children_display, "error": error},
     )
 
 

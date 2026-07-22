@@ -19,6 +19,13 @@
   </header>
 
   <main class="dashboard-main">
+    {% if error == "missing_fields" %}
+    <p class="form-error dashboard-error" role="alert">아이 이름과 시리얼 번호를 모두 입력해 주세요.</p>
+    {% elif error == "invalid_serial" %}
+    <p class="form-error dashboard-error" role="alert">유효하지 않은 시리얼 번호입니다. 스티커에 적힌 번호를 다시 확인해 주세요.</p>
+    {% elif error == "serial_used" %}
+    <p class="form-error dashboard-error" role="alert">이미 등록된 QR입니다. 다른 시리얼 번호를 사용해 주세요.</p>
+    {% endif %}
     <!-- 아이 목록 -->
     {% if children %}
     <section class="children-list">
