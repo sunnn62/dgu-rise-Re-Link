@@ -1,108 +1,47 @@
 <!DOCTYPE html>
 <html lang="ko">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>보호자 대시보드 — Re:Link</title>
-  <link rel="stylesheet" href="/static/style.css" />
-</head>
+<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title>보호자 대시보드 — Re:Link</title><link rel="stylesheet" href="/static/style.css?v=20260725-6"/></head>
 <body>
-  <!-- [Week1] 세션 기반 대시보드. URL(/guardian/dashboard)에는 어떤 식별 정보도
-       담기지 않으며, 접근 권한은 오직 로그인 세션 쿠키로만 판정된다.
-       예전의 /guardian/{manage_token} 방식(URL에 토큰 노출)에서 전환됨. -->
-  <header class="dashboard-header">
-    <h1 class="dashboard-title">Re:Link 보호자 대시보드</h1>
-    <p class="dashboard-subtitle">{{ guardian_name }}님, 안녕하세요</p>
-    <form action="/logout" method="post" class="inline-form logout-form">
-      <button type="submit" class="btn-logout">로그아웃</button>
-    </form>
-  </header>
+  {% set counts = namespace(active=0) %}{% for child in children %}{% if child.status == 'missing' %}{% set counts.active = counts.active + 1 %}{% endif %}{% endfor %}
+  <main class="screen-shell gap-6">
+    <header class="topbar">
+      <a class="logo sm" href="/"><span class="logo-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="19" r="3"/><circle cx="18" cy="5" r="3"/><path d="M9 19c4 0 4-14 9-14"/></svg></span><span class="logo-word">Re:Link</span></a>
+      <form class="inline-form" action="/logout" method="post"><button class="button button-ghost button-icon" type="submit" aria-label="로그아웃"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/></svg></button></form>
+    </header>
 
-  <main class="dashboard-main">
-    {% if error == "missing_fields" %}
-    <p class="form-error dashboard-error" role="alert">아이 이름과 시리얼 번호를 모두 입력해 주세요.</p>
-    {% elif error == "invalid_serial" %}
-    <p class="form-error dashboard-error" role="alert">유효하지 않은 시리얼 번호입니다. 스티커에 적힌 번호를 다시 확인해 주세요.</p>
-    {% elif error == "serial_used" %}
-    <p class="form-error dashboard-error" role="alert">이미 등록된 QR입니다. 다른 시리얼 번호를 사용해 주세요.</p>
-    {% endif %}
-    <!-- 아이 목록 -->
+    <div class="dashboard-summary"><h1>내 태그</h1><p class="dashboard-status"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>{% if counts.active > 0 %}{{ children|length }}명 중 {{ counts.active }}명 신고 중{% else %}모든 대상자의 신고가 꺼져 있습니다{% endif %}</p></div>
+
+    {% if error %}<div class="alert destructive dashboard-error" role="alert"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4M12 17h.01"/></svg><div class="alert-title">태그를 추가하지 못했습니다</div><div class="alert-description">{% if error == 'missing_fields' %}이름과 일련번호를 입력하세요.{% elif error == 'invalid_serial' %}태그의 코드를 확인하세요. 예: RL-AB2C-9KMP.{% elif error == 'serial_used' %}이미 등록된 QR 태그입니다.{% endif %}</div></div>{% endif %}
+
     {% if children %}
     <section class="children-list">
       {% for child in children %}
-      <div class="child-card">
-        <div class="child-card-top">
-          <span class="child-name">{{ child.name }}</span>
-          <!-- [Week1] 소유권은 서버(main.py)가 child.guardian_id로 재검증한다.
-               여기서는 로그인한 보호자 본인의 아이만 나열되므로 child_id만 넘긴다. -->
-          <form action="/guardian/dashboard/children/{{ child.id }}/delete" method="post" class="inline-form">
-            <button type="submit" class="btn-delete-icon" onclick="return confirm('정말 삭제하시겠습니까?')" aria-label="아이 삭제" title="삭제">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m5 0V4a2 2 0 0 1 2-2h0a2 2 0 0 1 2 2v2"></path></svg>
-            </button>
-          </form>
+      <article class="card child-card {% if child.status == 'missing' %}reporting{% endif %}"><div class="card-content">
+        <div class="child-top">
+          <div class="child-identity"><span class="child-avatar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span><div><p class="child-name">{{ child.name }}</p><p class="child-serial">{{ child.serial }}</p></div></div>
+          <form class="inline-form" action="/guardian/dashboard/children/{{ child.id }}/delete" method="post"><button class="button button-ghost button-icon delete-button" type="submit" onclick="return confirm('이 태그를 삭제할까요?')" aria-label="{{ child.name }} 태그 삭제"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v5M14 11v5"/></svg></button></form>
         </div>
 
-        <div class="child-status-row">
-          <span class="status-row-label">실종 신고</span>
-          <!-- [GAP A] 이 토글이 Child.status를 normal<->missing으로 전환한다.
-               missing일 때만 이 아이의 QR 스캔이 채팅으로 이어진다(서버가 재검증). -->
-          <form action="/guardian/dashboard/children/{{ child.id }}/toggle" method="post" class="inline-form toggle-form">
-            <button type="submit" class="toggle-switch {% if child.status == 'missing' %}is-on{% endif %}" aria-pressed="{% if child.status == 'missing' %}true{% else %}false{% endif %}">
-              <span class="toggle-switch-label-off">OFF</span>
-              <span class="toggle-knob"></span>
-              <span class="toggle-switch-label-on">ON</span>
-            </button>
-          </form>
+        <div class="report-row {% if child.status == 'missing' %}reporting{% endif %}">
+          <div class="report-info"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.48M7.76 16.24a6 6 0 0 1 0-8.48M19.07 4.93a10 10 0 0 1 0 14.14M4.93 19.07a10 10 0 0 1 0-14.14"/></svg><div><p class="report-title">실종 신고</p><p class="report-description">{% if child.status == 'missing' %}QR을 스캔하면 보호자와의 채팅이 열립니다.{% else %}꺼져 있으면 QR을 스캔해도 아무 일도 일어나지 않습니다.{% endif %}</p></div></div>
+          <form class="inline-form" action="/guardian/dashboard/children/{{ child.id }}/toggle" method="post"><button class="switch {% if child.status == 'missing' %}reporting{% endif %}" type="submit" aria-label="{{ child.name }} 실종 신고" aria-pressed="{% if child.status == 'missing' %}true{% else %}false{% endif %}"><span class="switch-knob"></span></button></form>
         </div>
 
-        {% if child.active_room_id %}
-        <!-- [Week1] 진행 중인 채팅방 표시. 이 아이가 실종 신고된 뒤 발견자가
-             채팅을 시작하면 여기 노출된다(PLAN "진행 중인 채팅방 접근").
-             입장 시 서버가 다시 한 번 소유권(child.guardian_id == 로그인 세션)을
-             재검증한다(GAP B). -->
-        <a href="/chat/{{ child.active_room_id }}?role=guardian" class="btn-active-room">
-          💬 진행 중인 채팅방 입장
-        </a>
-        {% endif %}
-
-        <a href="/admin/children/{{ child.qr_token }}/qr" class="btn-qr-prominent" download>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect><line x1="14" y1="14" x2="14" y2="21"></line><line x1="21" y1="14" x2="21" y2="21"></line><line x1="14" y1="17.5" x2="21" y2="17.5"></line></svg>
-          <span>QR 코드 다운로드</span>
-        </a>
-      </div>
+        {% if child.status == 'missing' and child.active_room_id %}<a class="button active-chat" href="/chat/{{ child.active_room_id }}?role=guardian"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/><path d="M7 8h10M7 12h6"/></svg>{{ child.name }} 님을 발견했습니다 — 채팅 열기</a>{% endif %}
+        <div style="display:flex;align-items:center;gap:.5rem"><a class="button button-outline button-sm qr-action" href="/admin/children/{{ child.qr_token }}/qr" download><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h7v7h-7z"/></svg>QR 코드</a></div>
+      </div></article>
       {% endfor %}
     </section>
     {% else %}
-    <div class="empty-state">
-      <p class="empty-icon">👶</p>
-      <p class="empty-text">등록된 아이가 없습니다</p>
-      <p class="empty-sub">아래에서 아이를 추가해 주세요.</p>
-    </div>
+    <section class="empty"><div class="empty-media"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg></div><h2 class="empty-title">아직 등록된 태그가 없습니다</h2><p class="empty-description">보호 대상자와 QR 스티커의 일련번호를 추가해 시작하세요.</p></section>
     {% endif %}
 
-    <!-- 아이 추가 폼: 시리얼 번호로 사전 발급된 QR을 이 계정에 연결(claim)한다. -->
-    <section class="add-child-section">
-      <h2 class="section-title">아이 추가</h2>
-      <form class="add-child-form" action="/guardian/dashboard/children" method="post">
-        <input
-          name="child_name"
-          class="form-input add-child-input"
-          type="text"
-          placeholder="아이 이름을 입력하세요"
-          required
-          maxlength="100"
-        />
-        <input
-          name="serial"
-          class="form-input add-child-input"
-          type="text"
-          placeholder="QR 스티커 시리얼 번호 (예: RL-AB2C-9KMP)"
-          required
-          maxlength="32"
-        />
-        <button type="submit" class="btn-primary btn-add">+ 아이 추가하기</button>
-      </form>
+    <section class="card add-card">
+      <div class="add-card-header"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg><div><p class="card-title">태그 추가하기</p><p class="card-description">같은 계정에 대상자를 더 등록할 수 있습니다.</p></div></div>
+      <div class="add-card-content"><form class="field-group" action="/guardian/dashboard/children" method="post"><div class="field"><label class="field-label" for="add-name"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>이름</label><input class="input" id="add-name" name="child_name" placeholder="누구를 등록하시나요?" required/></div><div class="field"><label class="field-label" for="add-serial"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h7v7h-7z"/></svg>태그 일련번호</label><input class="input mono" id="add-serial" name="serial" placeholder="RL-AB2C-9KMP" required/></div><button class="button button-lg w-full" type="submit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>태그 추가</button></form></div>
     </section>
+
+    <p class="dashboard-note">태그의 <strong>실종 신고</strong>를 켜 두면 발견자의 스캔이 보호자에게 연결됩니다.</p>
   </main>
 </body>
 </html>

@@ -987,6 +987,11 @@ def guardian_dashboard(request: Request, error: str | None = None, db: Session =
                 "name": child.name,
                 "status": child.status,
                 "qr_token": child.qr_token,
+                "serial": (
+                    child.qr_pool_entry.serial
+                    if child.qr_pool_entry is not None
+                    else child.qr_token[:12]
+                ),
                 "active_room_id": active_room.id if active_room else None,
             }
         )
