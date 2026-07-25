@@ -387,9 +387,11 @@ def found_landing(request: Request, qr_token: str, db: Session = Depends(get_db)
     if child is None:
         raise HTTPException(status_code=404, detail="유효하지 않은 QR입니다.")
 
-    # 템플릿에는 qr_token만 넘긴다(child.name 등은 절대 전달하지 않음).
+    # 템플릿에는 개인정보 없이 QR 토큰과 활성 상태만 전달한다.
     return templates.TemplateResponse(
-        request, "found_landing.html", {"qr_token": qr_token}
+        request,
+        "found_landing.html",
+        {"qr_token": qr_token, "is_active": child.status == "missing"},
     )
 
 

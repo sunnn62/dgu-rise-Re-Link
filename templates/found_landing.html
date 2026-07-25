@@ -1,66 +1,42 @@
 <!DOCTYPE html>
 <html lang="ko">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>아이 발견 신고</title>
-  <link rel="stylesheet" href="/static/style.css" />
-</head>
+<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title>발견자 화면 — Re:Link</title><link rel="stylesheet" href="/static/style.css?v=20260725-6"/></head>
 <body>
-  <!-- 위급 상황 안내: 화면 상단 고정 -->
-  <div class="emergency-bar">
-    ⚠️ 위험한 상황이면 채팅 전에 먼저 <strong>112</strong>에 신고해주세요
-  </div>
+  <main class="screen-shell gap-6">
+    <header class="finder-header"><a class="logo" href="/"><span class="logo-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="19" r="3"/><circle cx="18" cy="5" r="3"/><path d="M9 19c4 0 4-14 9-14"/></svg></span><span class="logo-word">Re:Link</span></a></header>
 
-  <main class="landing">
-    <div class="landing-card">
-      <div class="landing-icon">
-        <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-          <path d="M9 12l2 2 4-4"></path>
-        </svg>
-      </div>
-      <h1>아이를 발견하셨나요?</h1>
-      <p class="landing-desc">
-        아래 버튼을 누르면 보호자에게 즉시 알림이 가고, 실시간 채팅이 시작됩니다.<br />
-        아이의 개인정보(이름·연락처 등)는 공개되지 않습니다.
-      </p>
+    <div class="alert destructive" role="alert"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.93.36 1.85.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.96.34 1.88.58 2.81.7A2 2 0 0 1 22 16.92z"/></svg><div class="alert-title">응급 상황인가요?</div><div class="alert-description">긴급한 치료가 필요하거나 위험한 상황이라면, 채팅을 시작하기 전에 먼저 119 또는 112에 연락하세요.</div></div>
 
-      <button id="startBtn" class="btn-primary btn-found">
-        아이를 발견했어요, 보호자와 연결하기
-      </button>
-
-      <p id="statusMsg" class="status-msg" role="status" aria-live="polite"></p>
-    </div>
+    {% if is_active %}
+    <section class="finder-main">
+      <div class="finder-hero"><div class="finder-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A3.5 3.5 0 0 0 18.5 5c-1.02 0-1.85.5-2.5 1.28C15.35 5.5 14.52 5 13.5 5A3.5 3.5 0 0 0 10 8.5c0 .91.24 1.73.64 2.48"/><path d="M12 18H6.5a2.5 2.5 0 0 1 0-5H9l2-3 2 6 2-3h2.5a2.5 2.5 0 0 1 0 5H12Z"/></svg></div><div class="finder-copy"><h1>도와주셔서 감사합니다</h1><p>이 분은 집으로 돌아가는 데 도움이 필요할 수 있습니다. 보호자가 연락을 기다리고 있습니다.</p></div></div>
+      <div class="card privacy-card"><div class="card-content"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24M10.73 5.08A10.4 10.4 0 0 1 12 5c7 0 10 7 10 7a13.2 13.2 0 0 1-1.67 2.68M6.61 6.61A13.5 13.5 0 0 0 2 12s3 7 10 7a9.7 9.7 0 0 0 5.39-1.61M2 2l20 20"/></svg><div><p class="privacy-title">개인정보는 보호됩니다</p><p class="privacy-copy">이름, 사진, 나이는 표시되지 않습니다. 아래 버튼을 누르면 보호자에게 조용히 알림이 가고, 도울 수 있도록 익명 채팅이 열립니다.</p></div></div></div>
+      <button id="startBtn" class="button button-lg w-full" type="button">발견했어요, 보호자와 연결하기<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></button>
+      <p id="statusMsg" style="margin:0;text-align:center;color:var(--muted-foreground);font-size:.75rem" role="status" aria-live="polite"></p>
+      <p class="finder-footer">발견자는 익명으로 유지됩니다. 채팅에서는 "발견자"로만 표시됩니다.</p>
+    </section>
+    {% else %}
+    <section class="finder-main"><div class="finder-hero" style="padding-top:1.5rem"><div class="finder-icon muted"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9.1 9a3 3 0 1 1 5.8 1c0 2-3 2-3 4M12 18h.01"/></svg></div><div class="finder-copy"><h1>지금은 활성화되지 않은 태그입니다</h1><p>이 태그에 연결된 활성 요청이 없습니다. 주변에 도움이 필요한 사람이 있다면 119 또는 112에 연락해 주세요.</p></div></div><p class="finder-footer">태그 자체에는 어떤 개인정보도 저장되지 않습니다.</p></section>
+    {% endif %}
   </main>
 
-  <script>
-    // 서버가 주입한 값. qr_token은 URL 노출용 랜덤 토큰이며 아이 정보를 담지 않는다.
-    const QR_TOKEN = "{{ qr_token }}";
-    const startBtn = document.getElementById("startBtn");
-    const statusMsg = document.getElementById("statusMsg");
-
-    startBtn.addEventListener("click", async () => {
+  {% if is_active %}<script>
+    const QR_TOKEN = {{ qr_token|tojson }};
+    const startBtn = document.getElementById('startBtn');
+    const statusMsg = document.getElementById('statusMsg');
+    startBtn.addEventListener('click', async () => {
       startBtn.disabled = true;
-      statusMsg.textContent = "보호자에게 알림을 보내고 채팅방을 준비하고 있어요...";
+      statusMsg.textContent = '보호자에게 알림을 보내고 채팅방을 준비하고 있어요…';
       try {
-        const res = await fetch(`/found/${QR_TOKEN}/start`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: "{}",
-        });
-        if (!res.ok) {
-          throw new Error(`서버 응답 오류 (${res.status})`);
-        }
-        const data = await res.json();
-        // 발견자용 채팅 화면으로 이동.
+        const response = await fetch(`/found/${QR_TOKEN}/start`, { method: 'POST' });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || '연결하지 못했습니다.');
         window.location.href = data.chat_url;
-      } catch (err) {
-        statusMsg.textContent =
-          "연결에 실패했습니다. 잠시 후 다시 시도해주세요. (" + err.message + ")";
+      } catch (error) {
+        statusMsg.textContent = error.message;
         startBtn.disabled = false;
       }
     });
-  </script>
+  </script>{% endif %}
 </body>
 </html>
