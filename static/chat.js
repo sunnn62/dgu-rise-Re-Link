@@ -112,7 +112,7 @@
     row.className = "msg-row " + (mine ? "mine" : "theirs");
 
     const bubbleCol = document.createElement("div");
-    bubbleCol.className = "bubble-col";
+    bubbleCol.className = "bubble-col location-bubble-col";
 
     const who = document.createElement("div");
     who.className = "sender-label";

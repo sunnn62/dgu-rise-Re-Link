@@ -338,3 +338,57 @@ svg { display: block; }
 .location-bubble-copy strong { font-size: .875rem; font-weight: 500; }
 .location-bubble-copy span { color: var(--primary); font-size: .75rem; text-decoration: underline; text-underline-offset: 2px; }
 .bubble-col:has(.location-bubble) { max-width: 100%; }
+
+/* 위치 메시지 카드: 좁은 화면에서도 문구가 음절 단위로 찌그러지지 않게 한다. */
+.location-bubble-col {
+  width: 100%;
+  max-width: 100%;
+}
+.location-bubble {
+  width: 100%;
+  max-width: 100%;
+  padding: .5rem;
+  gap: .5rem;
+}
+.location-bubble-icon {
+  width: 1.75rem;
+  height: 1.75rem;
+}
+.location-bubble-icon svg {
+  width: .875rem;
+  height: .875rem;
+}
+.location-bubble-copy {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.location-bubble-copy strong,
+.location-bubble-copy span {
+  display: block;
+  white-space: nowrap;
+  word-break: keep-all;
+  overflow-wrap: normal;
+}
+
+@media (max-width: 28rem) {
+  .location-bubble {
+    padding: .375rem;
+    gap: .375rem;
+  }
+  .location-bubble-icon {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+  .location-bubble-icon svg {
+    width: .6875rem;
+    height: .6875rem;
+  }
+  .location-bubble-copy strong {
+    font-size: .75rem;
+    line-height: 1rem;
+  }
+  .location-bubble-copy span {
+    font-size: .625rem;
+    line-height: .875rem;
+  }
+}

@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="ko">
-<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title>보호자 대시보드 — Re:Link</title><link rel="stylesheet" href="/static/style.css?v=20260725-6"/></head>
+<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title>보호자 대시보드 — Re:Link</title><link rel="stylesheet" href="/static/style.css?v=20260725-7"/></head>
 <body>
   {% set counts = namespace(active=0) %}{% for child in children %}{% if child.status == 'missing' %}{% set counts.active = counts.active + 1 %}{% endif %}{% endfor %}
   <main class="screen-shell gap-6">
