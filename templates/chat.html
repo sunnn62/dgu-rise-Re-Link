@@ -1,67 +1,30 @@
 <!DOCTYPE html>
 <html lang="ko">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>발견 신고 채팅</title>
-  <link rel="stylesheet" href="/static/style.css" />
-</head>
+<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title>익명 채팅 — Re:Link</title><link rel="stylesheet" href="/static/style.css?v=20260725-6"/></head>
 <body class="chat-body">
-  <header class="chat-header">
-    <span class="chat-title">아이 발견 신고 채팅방</span>
-    <span id="connStatus" class="conn-status conn-connecting">연결 중…</span>
-  </header>
+  <main class="chat-shell">
+    <header class="chat-header">
+      <button class="button button-ghost button-icon" type="button" onclick="history.back()" aria-label="뒤로"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg></button>
+      <div class="chat-heading"><span class="chat-title">{% if role == 'finder' %}보호자와 채팅{% else %}발견자와 채팅{% endif %}</span><span id="connStatus" class="conn-status conn-connecting">연결 중…</span></div>
+      <span class="anon-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>익명</span>
+    </header>
 
-  <div id="messages" class="messages" aria-live="polite"></div>
+    <section id="messages" class="messages" aria-live="polite">
+      <div id="chatEmptyState" class="chat-empty-state"><svg class="chat-empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg><h1 class="chat-empty-state-title">아직 메시지가 없습니다</h1><p class="chat-empty-state-text">메시지는 비공개이며 역할로만 표시됩니다. 실명은 절대 공유되지 않습니다.</p></div>
+    </section>
 
-  <!-- [GAP B] 발견자 위치-잠금 게이트: 위치를 공유해야 채팅을 시작할 수 있다.
-       위치 공유를 원치 않으면 112 신고 경로로 안내한다(클라이언트 전용 안내 —
-       백엔드에 별도 신고 API가 아직 없으므로 서버에 메시지를 보내지 않는다). -->
-  <div id="locationGate" class="location-gate" hidden>
-    <p class="location-gate-text">
-      채팅을 시작하려면 먼저 위치를 공유해주세요.<br />
-      위치는 1회만 전송되며, 실시간으로 추적되지 않습니다.
-    </p>
-    <button id="shareLocationBtn" type="button" class="btn-location-primary">
-      📍 위치 공유하고 채팅 시작
-    </button>
-    <button id="emergency112Btn" type="button" class="btn-emergency">
-      🚨 위치 공유 없이 112 신고하기
-    </button>
-  </div>
+    <section id="locationGate" class="location-gate" hidden>
+      <div class="location-intro"><span class="location-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 11 19-9-9 19-2-8-8-2z"/></svg></span><div class="location-copy"><p class="location-title">위치를 한 번만 공유하기</p><p class="location-description">보호자가 찾아올 수 있도록 위치를 한 번만 공유하세요. 지속적인 위치 추적이 아닙니다.</p></div></div>
+      <button id="shareLocationBtn" class="btn-location-primary" type="button"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg>위치 공유하고 채팅 시작</button>
+      <button id="emergency112Btn" class="btn-emergency" type="button">위치 공유 없이 긴급 신고하기</button>
+    </section>
 
-  <!-- [GAP B] 112 안내 패널: 위치 공유를 원치 않는 발견자에게 표시된다. -->
-  <div id="emergencyPanel" class="emergency-panel" hidden>
-    <p class="emergency-panel-text">
-      위급한 상황이면 아래 번호로 즉시 신고해주세요.<br />
-      보호자에게는 위치 공유 없이 신고 경로로 안내되었다는 사실만 전달됩니다.
-    </p>
-    <a href="tel:112" class="emergency-tel-link">📞 112 신고 전화 걸기</a>
-    <button id="backToLocationGateBtn" type="button" class="btn-text-link">
-      ← 위치를 공유하고 채팅으로 돌아가기
-    </button>
-  </div>
+    <section id="emergencyPanel" class="emergency-panel" hidden><div class="emergency-card"><p class="emergency-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.93.36 1.85.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.96.34 1.88.58 2.81.7A2 2 0 0 1 22 16.92z"/></svg>위치 공유 없이 신고하기</p><p class="emergency-panel-text">위치는 전송되지 않습니다. 119 또는 112에 전화해 도움이 필요한 사람을 발견했다고 알려 주세요.</p><a class="emergency-tel-link" href="tel:112"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.93.36 1.85.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.96.34 1.88.58 2.81.7A2 2 0 0 1 22 16.92z"/></svg>긴급 신고 전화</a><button id="backToLocationGateBtn" class="btn-text-link" type="button">뒤로</button></div></section>
 
-  <form id="chatForm" class="chat-input-bar" autocomplete="off" hidden>
-    <input
-      id="msgInput"
-      class="msg-input"
-      type="text"
-      placeholder="메시지를 입력하세요"
-      maxlength="1000"
-      required
-    />
-    <button type="submit" class="btn-send">전송</button>
-  </form>
+    <form id="chatForm" class="chat-input-bar" autocomplete="off" hidden><div class="input-group"><textarea id="msgInput" class="msg-input" rows="1" maxlength="1000" placeholder="메시지를 입력하세요…" required></textarea><button class="btn-send" type="submit" aria-label="메시지 보내기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg></button></div></form>
+  </main>
 
-  <script>
-    // 서버가 주입하는 채팅 설정. 실명·전화번호는 포함하지 않는다.
-    window.CHAT_CONFIG = {
-      roomId: "{{ room_id }}",
-      role: "{{ role }}",
-      wsUrl: "{{ ws_url }}",
-    };
-  </script>
-  <script src="/static/chat.js"></script>
+  <script>window.CHAT_CONFIG = { roomId: {{ room_id|tojson }}, role: {{ role|tojson }}, wsUrl: {{ ws_url|tojson }} };</script>
+  <script src="/static/chat.js?v=20260725-5"></script>
 </body>
 </html>

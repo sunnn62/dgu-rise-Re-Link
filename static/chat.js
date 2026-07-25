@@ -8,6 +8,7 @@
   const messagesEl = document.getElementById("messages");
   const formEl = document.getElementById("chatForm");
   const inputEl = document.getElementById("msgInput");
+  const sendEl = formEl.querySelector(".btn-send");
   const statusEl = document.getElementById("connStatus");
 
   const MAX_RECONNECT = 3; // 재연결 최대 시도 횟수
@@ -41,8 +42,15 @@
     messagesEl.scrollTop = messagesEl.scrollHeight;
   }
 
+  // 첫 메시지가 렌더링되면 빈 상태 안내를 제거한다.
+  function hideEmptyState() {
+    const emptyState = document.getElementById("chatEmptyState");
+    if (emptyState) emptyState.remove();
+  }
+
   // 시스템 안내 메시지(가운데 정렬).
   function renderSystem(content) {
+    hideEmptyState();
     const el = document.createElement("div");
     el.className = "msg-system";
     el.textContent = content;
@@ -50,66 +58,83 @@
     scrollToBottom();
   }
 
+  // 작은 원형 아바타 아이콘(상대방 말풍선 옆에 고정 표시).
+  function createMiniAvatar() {
+    const avatar = document.createElement("div");
+    avatar.className = "msg-avatar";
+    avatar.innerHTML =
+      '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>';
+    return avatar;
+  }
+
   // 일반 텍스트 말풍선. 내 메시지는 오른쪽, 상대는 왼쪽.
   function renderText(msg) {
+    hideEmptyState();
     const mine = msg.sender_role === config.role;
     const row = document.createElement("div");
     row.className = "msg-row " + (mine ? "mine" : "theirs");
 
+    const bubbleGroup = document.createElement("div");
+    bubbleGroup.className = "bubble-group";
+
+    if (!mine) {
+      bubbleGroup.appendChild(createMiniAvatar());
+    }
+
+    const bubbleCol = document.createElement("div");
+    bubbleCol.className = "bubble-col";
+
     const bubble = document.createElement("div");
     bubble.className = "bubble";
 
-    if (!mine) {
-      const who = document.createElement("div");
-      who.className = "sender-label";
-      who.textContent = msg.sender_role === "guardian" ? "보호자" : "발견자";
-      bubble.appendChild(who);
-    }
+    const who = document.createElement("div");
+    who.className = "sender-label";
+    who.textContent = msg.sender_role === "guardian" ? "보호자" : "발견자";
+    bubbleCol.appendChild(who);
 
     const body = document.createElement("div");
     body.className = "bubble-text";
     body.innerHTML = escapeHtml(msg.content);
     bubble.appendChild(body);
 
-    row.appendChild(bubble);
+    bubbleCol.appendChild(bubble);
+    bubbleGroup.appendChild(bubbleCol);
+    row.appendChild(bubbleGroup);
     messagesEl.appendChild(row);
     scrollToBottom();
   }
 
   // 위치 메시지 말풍선. 지도 링크(구글 지도)를 새 탭으로 열 수 있게 렌더링한다.
   function renderLocation(msg) {
+    hideEmptyState();
     const mine = msg.sender_role === config.role;
     const row = document.createElement("div");
     row.className = "msg-row " + (mine ? "mine" : "theirs");
 
-    const bubble = document.createElement("div");
-    bubble.className = "bubble";
+    const bubbleCol = document.createElement("div");
+    bubbleCol.className = "bubble-col";
 
-    if (!mine) {
-      const who = document.createElement("div");
-      who.className = "sender-label";
-      who.textContent = msg.sender_role === "guardian" ? "보호자" : "발견자";
-      bubble.appendChild(who);
-    }
+    const who = document.createElement("div");
+    who.className = "sender-label";
+    who.textContent = msg.sender_role === "guardian" ? "보호자" : "발견자";
+    bubbleCol.appendChild(who);
 
     const lat = Number(msg.latitude);
     const lng = Number(msg.longitude);
-    const mapUrl = "https://www.google.com/maps?q=" + lat + "," + lng;
+    const mapUrl =
+      "https://www.google.com/maps/search/?api=1&query=" + lat + "," + lng;
 
     const link = document.createElement("a");
-    link.className = "location-link";
+    link.className = "location-bubble";
     link.href = mapUrl;
     link.target = "_blank";
     link.rel = "noopener noreferrer";
-    link.textContent = "📍 공유된 위치 보기 (지도 열기)";
-    bubble.appendChild(link);
+    link.innerHTML =
+      '<span class="location-bubble-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg></span>' +
+      '<span class="location-bubble-copy"><strong>공유된 위치</strong><span>지도에서 보기</span></span>';
 
-    const coords = document.createElement("div");
-    coords.className = "location-coords";
-    coords.textContent = lat.toFixed(5) + ", " + lng.toFixed(5);
-    bubble.appendChild(coords);
-
-    row.appendChild(bubble);
+    bubbleCol.appendChild(link);
+    row.appendChild(bubbleCol);
     messagesEl.appendChild(row);
     scrollToBottom();
   }
@@ -186,6 +211,24 @@
     setTimeout(connect, reconnectCount * 1000);
   }
 
+  function syncSendButton() {
+    if (sendEl) sendEl.disabled = !inputEl.value.trim();
+  }
+
+  inputEl.addEventListener("input", syncSendButton);
+  inputEl.addEventListener("keydown", function (event) {
+    if (
+      event.key === "Enter" &&
+      !event.shiftKey &&
+      !event.isComposing &&
+      event.keyCode !== 229
+    ) {
+      event.preventDefault();
+      formEl.requestSubmit();
+    }
+  });
+  syncSendButton();
+
   formEl.addEventListener("submit", function (e) {
     e.preventDefault();
     const text = inputEl.value.trim();
@@ -196,6 +239,7 @@
     }
     ws.send(JSON.stringify({ type: "text", content: text }));
     inputEl.value = "";
+    syncSendButton();
     inputEl.focus();
   });
 
@@ -254,7 +298,7 @@
     }
 
     shareLocationBtn.disabled = true;
-    shareLocationBtn.textContent = "📍 위치 확인 중…";
+    shareLocationBtn.textContent = "위치 확인 중…";
 
     navigator.geolocation.getCurrentPosition(
       function (position) {
@@ -266,7 +310,7 @@
           })
         );
         shareLocationBtn.disabled = false;
-        shareLocationBtn.textContent = "📍 위치 공유하고 채팅 시작";
+        shareLocationBtn.textContent = "위치 공유하고 채팅 시작";
         unlockChatAfterLocation();
       },
       function (error) {
@@ -278,7 +322,7 @@
         }
         renderSystem(reason);
         shareLocationBtn.disabled = false;
-        shareLocationBtn.textContent = "📍 위치 공유하고 채팅 시작";
+        shareLocationBtn.textContent = "위치 공유하고 채팅 시작";
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
