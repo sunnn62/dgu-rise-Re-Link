@@ -81,6 +81,12 @@ def on_startup() -> None:
     init_db()
 
 
+@app.get("/", response_class=HTMLResponse)
+def home_page(request: Request) -> HTMLResponse:
+    """v0 디자인의 서비스 소개/화면 둘러보기 홈."""
+    return templates.TemplateResponse(request, "home.html", {})
+
+
 # ---------------------------------------------------------------------------
 # [Week1] 세션 헬퍼: 로그인 여부/소유권 판정의 단일 진입점
 # ---------------------------------------------------------------------------
