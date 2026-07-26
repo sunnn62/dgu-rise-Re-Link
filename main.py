@@ -83,8 +83,12 @@ def on_startup() -> None:
 
 @app.get("/", response_class=HTMLResponse)
 def home_page(request: Request) -> HTMLResponse:
-    """v0 디자인의 서비스 소개/화면 둘러보기 홈."""
-    return templates.TemplateResponse(request, "home.html", {})
+    """서비스 소개 홈 화면을 렌더링한다."""
+    return templates.TemplateResponse(
+        request,
+        "home.html",
+        {"current_year": datetime.now(timezone.utc).year},
+    )
 
 
 # ---------------------------------------------------------------------------

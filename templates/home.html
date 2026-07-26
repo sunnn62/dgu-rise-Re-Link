@@ -4,40 +4,77 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Re:Link — 소중한 사람을 다시 잇다</title>
-  <link rel="stylesheet" href="/static/style.css?v=20260725-7" />
+  <link rel="stylesheet" href="/static/style.css?v=20260726-1" />
 </head>
 <body>
-  <main class="screen-shell gap-8">
+  <main class="screen-shell gap-10">
     <header class="topbar">
       <a class="logo" href="/">
-        <span class="logo-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="19" r="3"/><circle cx="18" cy="5" r="3"/><path d="M9 19c4 0 4-14 9-14"/></svg></span>
+        <span class="logo-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="19" r="3"/><circle cx="18" cy="5" r="3"/><path d="M9 19c4 0 4-14 9-14"/></svg></span>
         <span class="logo-word">Re:Link</span>
       </a>
-      <span style="font-size:.75rem;font-weight:500;color:var(--muted-foreground)">프로토타입</span>
+      <a class="home-login-link" href="/login">로그인</a>
     </header>
 
     <section class="hero">
-      <span class="badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>안심 서비스</span>
+      <span class="badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>안심 재회 서비스</span>
       <h1>신원은 지키면서, 소중한 사람과 다시 이어지세요.</h1>
-      <p>Re:Link는 익명 QR 태그로 실종된 취약 계층을 보호자와 다시 이어 줍니다. 발견자가 태그를 스캔하면 비공개 채팅이 열리며, 어떤 개인 정보도 노출되지 않습니다.</p>
+      <p>Re:Link는 익명 QR 태그로 실종된 어르신과 아이를 보호자와 다시 이어 줍니다. 발견자가 태그를 스캔하면 비공개 채팅이 열리며, 어떤 개인 정보도 노출되지 않습니다.</p>
       <div class="hero-actions">
-        <a class="button button-lg flex-1" href="/register">시작하기<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></a>
+        <a class="button button-lg flex-1" href="/register">무료로 시작하기<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></a>
         <a class="button button-lg button-outline flex-1" href="/login">이미 계정이 있어요</a>
       </div>
     </section>
 
-    <section class="home-screen-list">
-      <div class="home-screen-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h7v7h-7z"/></svg>화면 둘러보기</div>
-      <div class="screen-links">
-        <a class="screen-link" href="/register"><div class="card"><div class="screen-link-row"><span class="screen-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg></span><div class="screen-link-copy"><p class="card-title">보호자 회원가입</p><p class="card-description">계정을 만들고 첫 태그를 등록합니다.</p></div><svg class="screen-link-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></div></div></a>
-        <a class="screen-link" href="/login"><div class="card"><div class="screen-link-row"><span class="screen-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><path d="m10 17 5-5-5-5"/><path d="M15 12H3"/></svg></span><div class="screen-link-copy"><p class="card-title">보호자 로그인</p><p class="card-description">휴대폰 번호와 PIN으로 로그인합니다.</p></div><svg class="screen-link-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></div></div></a>
-        <a class="screen-link" href="/guardian/dashboard"><div class="card"><div class="screen-link-row"><span class="screen-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></span><div class="screen-link-copy"><p class="card-title">보호자 대시보드</p><p class="card-description">태그 관리, 실종 신고 전환, 진행 중인 대화 열기.</p></div><svg class="screen-link-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></div></div></a>
-        <a class="screen-link" href="#"><div class="card"><div class="screen-link-row"><span class="screen-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2M7 12h10"/></svg></span><div class="screen-link-copy"><p class="card-title">발견자 화면</p><p class="card-description">태그를 스캔한 사람에게 보이는 화면입니다.</p></div><svg class="screen-link-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></div></div></a>
-        <a class="screen-link" href="#"><div class="card"><div class="screen-link-row"><span class="screen-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 8h10M7 12h6"/><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg></span><div class="screen-link-copy"><p class="card-title">익명 채팅</p><p class="card-description">역할만 표시되는 두 사람 간의 비공개 대화입니다.</p></div><svg class="screen-link-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></div></div></a>
-      </div>
+    <section class="home-service-section">
+      <h2 class="home-section-title">이렇게 이어집니다</h2>
+      <ol class="home-step-list">
+        <li class="home-step">
+          <span class="home-step-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="5" height="5" x="3" y="3" rx="1"/><rect width="5" height="5" x="16" y="3" rx="1"/><rect width="5" height="5" x="3" y="16" rx="1"/><path d="M21 16h-3a2 2 0 0 0-2 2v3M21 21v.01M12 7v3a2 2 0 0 1-2 2H7M3 12h.01M12 3h.01M12 16v.01M16 12h1M21 12v.01M12 21v-1"/></svg><b>1</b></span>
+          <span class="home-step-copy"><strong>태그를 부착하세요</strong><span>보호 대상자의 옷이나 소지품에 Re:Link QR 태그를 붙입니다. 태그에는 어떤 개인정보도 담기지 않습니다.</span></span>
+        </li>
+        <li class="home-step">
+          <span class="home-step-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2M7 12h10"/></svg><b>2</b></span>
+          <span class="home-step-copy"><strong>발견자가 스캔합니다</strong><span>길에서 마주친 누군가가 스마트폰으로 QR을 스캔하면, 보호자에게 즉시 알림이 전달됩니다.</span></span>
+        </li>
+        <li class="home-step">
+          <span class="home-step-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/><path d="M7 8h10M7 12h6"/></svg><b>3</b></span>
+          <span class="home-step-copy"><strong>익명으로 연결됩니다</strong><span>보호자와 발견자가 비공개 채팅으로 이어져, 이름을 밝히지 않고도 안전하게 만날 수 있습니다.</span></span>
+        </li>
+      </ol>
     </section>
 
-    <footer class="page-footer mt-auto">실제 응급 상황에서는 먼저 119 또는 112에 연락하세요.</footer>
+    <section class="home-assurances">
+      <h2 class="home-section-title">그래서 안심할 수 있습니다</h2>
+      <ul class="home-assurance-list">
+        <li class="home-assurance">
+          <span class="home-assurance-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m2 2 20 20"/><path d="M6.71 6.71C4.81 8.03 3.31 9.8 2 12c2.4 4 5.73 6 10 6 1.42 0 2.72-.22 3.89-.65M10.73 5.08C11.14 5.03 11.56 5 12 5c4.27 0 7.6 2 10 7a17.7 17.7 0 0 1-2.17 2.89"/><path d="M14.12 14.12A3 3 0 0 1 9.88 9.88"/></svg></span>
+          <span class="home-assurance-copy"><strong>개인정보 비공개</strong><span>발견자에게 이름·사진·나이가 절대 표시되지 않습니다.</span></span>
+        </li>
+        <li class="home-assurance">
+          <span class="home-assurance-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg></span>
+          <span class="home-assurance-copy"><strong>일회성 위치 공유</strong><span>위치는 필요한 순간 한 번만 공유되며, 지속 추적하지 않습니다.</span></span>
+        </li>
+        <li class="home-assurance">
+          <span class="home-assurance-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg></span>
+          <span class="home-assurance-copy"><strong>보호자가 직접 제어</strong><span>실종 신고를 켜야만 스캔이 보호자에게 연결됩니다.</span></span>
+        </li>
+      </ul>
+    </section>
+
+    <section class="home-final-cta">
+      <span class="home-final-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg></span>
+      <div class="home-final-copy">
+        <h2>가장 소중한 사람을 지금 등록하세요</h2>
+        <p>몇 분이면 계정을 만들고 첫 태그를 등록할 수 있습니다.</p>
+      </div>
+      <a class="button button-lg w-full" href="/register">보호자 계정 만들기</a>
+    </section>
+
+    <footer class="home-footer mt-auto">
+      <p>실제 응급 상황에서는 먼저 119 또는 112에 연락하세요.</p>
+      <p>© {{ current_year }} Re:Link</p>
+    </footer>
   </main>
 </body>
 </html>
