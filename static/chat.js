@@ -8,6 +8,7 @@
   const messagesEl = document.getElementById("messages");
   const formEl = document.getElementById("chatForm");
   const inputEl = document.getElementById("msgInput");
+  const sendEl = formEl.querySelector(".btn-send");
   const statusEl = document.getElementById("connStatus");
 
   const MAX_RECONNECT = 3; // 재연결 최대 시도 횟수
@@ -41,8 +42,15 @@
     messagesEl.scrollTop = messagesEl.scrollHeight;
   }
 
+  // 첫 메시지가 렌더링되면 빈 상태 안내를 제거한다.
+  function hideEmptyState() {
+    const emptyState = document.getElementById("chatEmptyState");
+    if (emptyState) emptyState.remove();
+  }
+
   // 시스템 안내 메시지(가운데 정렬).
   function renderSystem(content) {
+    hideEmptyState();
     const el = document.createElement("div");
     el.className = "msg-system";
     el.textContent = content;
@@ -50,28 +58,48 @@
     scrollToBottom();
   }
 
+  // 작은 원형 아바타 아이콘(상대방 말풍선 옆에 고정 표시).
+  function createMiniAvatar() {
+    const avatar = document.createElement("div");
+    avatar.className = "msg-avatar";
+    avatar.innerHTML =
+      '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>';
+    return avatar;
+  }
+
   // 일반 텍스트 말풍선. 내 메시지는 오른쪽, 상대는 왼쪽.
   function renderText(msg) {
+    hideEmptyState();
     const mine = msg.sender_role === config.role;
     const row = document.createElement("div");
     row.className = "msg-row " + (mine ? "mine" : "theirs");
 
+    const bubbleGroup = document.createElement("div");
+    bubbleGroup.className = "bubble-group";
+
+    if (!mine) {
+      bubbleGroup.appendChild(createMiniAvatar());
+    }
+
+    const bubbleCol = document.createElement("div");
+    bubbleCol.className = "bubble-col";
+
     const bubble = document.createElement("div");
     bubble.className = "bubble";
 
-    if (!mine) {
-      const who = document.createElement("div");
-      who.className = "sender-label";
-      who.textContent = msg.sender_role === "guardian" ? "보호자" : "발견자";
-      bubble.appendChild(who);
-    }
+    const who = document.createElement("div");
+    who.className = "sender-label";
+    who.textContent = msg.sender_role === "guardian" ? "보호자" : "발견자";
+    bubbleCol.appendChild(who);
 
     const body = document.createElement("div");
     body.className = "bubble-text";
     body.innerHTML = escapeHtml(msg.content);
     bubble.appendChild(body);
 
-    row.appendChild(bubble);
+    bubbleCol.appendChild(bubble);
+    bubbleGroup.appendChild(bubbleCol);
+    row.appendChild(bubbleGroup);
     messagesEl.appendChild(row);
     scrollToBottom();
   }
@@ -84,38 +112,36 @@
   // [Week2] 오차 반경(accuracy)도 함께 표시해, 보호자가 이 위치를 얼마나
   // 믿어야 하는지 판단할 수 있게 한다.
   function renderLocation(msg) {
+    hideEmptyState();
     const mine = msg.sender_role === config.role;
     const row = document.createElement("div");
     row.className = "msg-row " + (mine ? "mine" : "theirs");
 
-    const bubble = document.createElement("div");
-    bubble.className = "bubble";
+    const bubbleCol = document.createElement("div");
+    bubbleCol.className = "bubble-col location-bubble-col";
 
-    if (!mine) {
-      const who = document.createElement("div");
-      who.className = "sender-label";
-      who.textContent = msg.sender_role === "guardian" ? "보호자" : "발견자";
-      bubble.appendChild(who);
-    }
+    const who = document.createElement("div");
+    who.className = "sender-label";
+    who.textContent = msg.sender_role === "guardian" ? "보호자" : "발견자";
+    bubbleCol.appendChild(who);
 
     const lat = Number(msg.latitude);
     const lng = Number(msg.longitude);
-    const mapUrl = "https://www.google.com/maps?q=" + lat + "," + lng;
+    const mapUrl =
+      "https://www.google.com/maps/search/?api=1&query=" + lat + "," + lng;
 
     const link = document.createElement("a");
-    link.className = "location-link";
+    link.className = "location-bubble";
     link.href = mapUrl;
     link.target = "_blank";
     link.rel = "noopener noreferrer";
-    link.textContent = "📍 공유된 위치 보기 (지도 열기)";
-    bubble.appendChild(link);
+    link.innerHTML =
+      '<span class="location-bubble-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg></span>' +
+      '<span class="location-bubble-copy"><strong>공유된 위치</strong><span>지도에서 보기</span></span>';
 
-    const coords = document.createElement("div");
-    coords.className = "location-coords";
-    coords.textContent = lat.toFixed(5) + ", " + lng.toFixed(5);
-    bubble.appendChild(coords);
+    bubbleCol.appendChild(link);
 
-    // accuracy가 있으면 오차 반경을 함께 표시한다(없으면 생략, 구버전 호환).
+    // [Week2] accuracy가 있으면 오차 반경을 함께 표시한다(없으면 생략, 구버전 호환).
     const accuracy = msg.accuracy != null ? Number(msg.accuracy) : null;
     if (accuracy != null && !Number.isNaN(accuracy)) {
       const accuracyEl = document.createElement("div");
@@ -123,18 +149,18 @@
       accuracyEl.className = "location-accuracy" + (isImprecise ? " is-imprecise" : "");
       accuracyEl.textContent =
         (isImprecise ? "⚠️ " : "") + "오차 반경 약 " + Math.round(accuracy) + "m";
-      bubble.appendChild(accuracyEl);
+      bubbleCol.appendChild(accuracyEl);
 
       // 정확도가 낮은 위치를 "내가" 보낸 경우, 재시도를 안내한다.
       if (isImprecise && mine) {
         const retryEl = document.createElement("div");
         retryEl.className = "location-accuracy-hint";
         retryEl.textContent = "실외로 이동해서 다시 시도하면 더 정확한 위치를 보낼 수 있어요.";
-        bubble.appendChild(retryEl);
+        bubbleCol.appendChild(retryEl);
       }
     }
 
-    row.appendChild(bubble);
+    row.appendChild(bubbleCol);
     messagesEl.appendChild(row);
     scrollToBottom();
   }
@@ -188,6 +214,8 @@
       reconnectCount = 0;
       setStatus("연결됨", "conn-ok");
       inputEl.disabled = false;
+      // [GAP B] finder는 위치를 공유하기 전까지 이미 hideChatInput()으로
+      // 입력 폼 자체가 숨겨져 있으므로 disabled 해제와 무관하게 입력 불가능하다.
     };
 
     ws.onmessage = function (event) {
@@ -224,6 +252,24 @@
     setTimeout(connect, reconnectCount * 1000);
   }
 
+  function syncSendButton() {
+    if (sendEl) sendEl.disabled = !inputEl.value.trim();
+  }
+
+  inputEl.addEventListener("input", syncSendButton);
+  inputEl.addEventListener("keydown", function (event) {
+    if (
+      event.key === "Enter" &&
+      !event.shiftKey &&
+      !event.isComposing &&
+      event.keyCode !== 229
+    ) {
+      event.preventDefault();
+      formEl.requestSubmit();
+    }
+  });
+  syncSendButton();
+
   formEl.addEventListener("submit", function (e) {
     e.preventDefault();
     const text = inputEl.value.trim();
@@ -234,116 +280,135 @@
     }
     ws.send(JSON.stringify({ type: "text", content: text }));
     inputEl.value = "";
+    syncSendButton();
     inputEl.focus();
   });
 
-  // ---------- [Week2/GAP B] 위치 공유 게이트 + 112 대체 경로 (발견자 전용) ----------
+  // ---------- [Week2/GAP B] 위치-잠금 게이트 + 112 신고 경로 (발견자 전용) ----------
   const locationGate = document.getElementById("locationGate");
+  const emergencyPanel = document.getElementById("emergencyPanel");
   const shareLocationBtn = document.getElementById("shareLocationBtn");
-  const declineLocationBtn = document.getElementById("declineLocationBtn");
-  const emergencyNotice = document.getElementById("emergencyNotice");
+  const emergency112Btn = document.getElementById("emergency112Btn");
+  const backToLocationGateBtn = document.getElementById("backToLocationGateBtn");
 
-  // 서버 이력(history)의 location 메시지 존재 여부로 "이미 위치를 공유했는지"를
-  // 판단한다. finder 텍스트 게이트는 서버(main.py _receive_loop)가 최종 판단하며,
-  // 이 UI는 사용자 경험을 위한 보조 표시일 뿐이다(서버 재검증이 진짜 방어선).
+  // [Week2] 위치 잠금은 "발견자 단위"다(다른 발견자가 공유했어도 내 잠금은 안 풀림).
+  // 진짜 판정은 서버가 접속 직후 보내는 gate 메시지(handleServerMessage)이며,
+  // 아래 초기값과 role별 초기 화면은 연결 전 임시 표시일 뿐이다. 텍스트 차단의
+  // 최종 방어선은 서버(main.py _receive_loop)다.
   let locationAlreadyShared = false;
 
   function showChatInput() {
     formEl.hidden = false;
-    inputEl.disabled = false;
     if (locationGate) locationGate.hidden = true;
-    if (emergencyNotice) emergencyNotice.hidden = true;
+    if (emergencyPanel) emergencyPanel.hidden = true;
+  }
+
+  function hideChatInput() {
+    formEl.hidden = true;
   }
 
   function showLocationGate() {
     if (locationGate) locationGate.hidden = false;
-    formEl.hidden = true;
-    if (emergencyNotice) emergencyNotice.hidden = true;
+    if (emergencyPanel) emergencyPanel.hidden = true;
+    hideChatInput();
   }
 
-  function showEmergencyNotice() {
-    if (emergencyNotice) emergencyNotice.hidden = false;
-    formEl.hidden = true;
+  function showEmergencyPanel() {
     if (locationGate) locationGate.hidden = true;
+    if (emergencyPanel) emergencyPanel.hidden = false;
+    hideChatInput();
   }
 
-  // 발견자는 위치 공유 전까지 채팅 입력창 대신 위치 공유 게이트를 본다.
-  if (config.role === "finder") {
-    formEl.hidden = true; // 기본값: 게이트를 먼저 보여준다(연결 후 상태에 따라 갱신).
+  function unlockChatAfterLocation() {
+    locationAlreadyShared = true;
+    showChatInput();
+  }
+
+  if (config.role === "guardian") {
+    // 보호자는 위치-잠금이 적용되지 않는다. 연결되면 곧바로 입력창을 연다.
+    showChatInput();
+  } else {
+    // 발견자는 위치를 공유하기 전까지 채팅 입력창을 볼 수 없다.
+    // (이미 공유한 발견자는 연결 직후 서버 gate 메시지가 입력창을 다시 열어준다.)
+    showLocationGate();
+  }
+
+  function requestAndShareLocation() {
+    if (!("geolocation" in navigator)) {
+      renderSystem("이 브라우저는 위치 기능을 지원하지 않습니다.");
+      return;
+    }
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      renderSystem("연결된 후에 위치를 공유할 수 있습니다.");
+      return;
+    }
+
+    shareLocationBtn.disabled = true;
+    shareLocationBtn.textContent = "위치 확인 중…";
+
+    navigator.geolocation.getCurrentPosition(
+      function (position) {
+        // [Week2] 오차 반경(accuracy, 미터)도 함께 전송한다. 서버가 저장하고
+        // 브로드캐스트하는 값이며, 화면 표시는 renderLocation이 담당한다.
+        ws.send(
+          JSON.stringify({
+            type: "location",
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            accuracy: position.coords.accuracy,
+          })
+        );
+        shareLocationBtn.disabled = false;
+        shareLocationBtn.textContent = "위치 공유하고 채팅 시작";
+        unlockChatAfterLocation();
+
+        // 오차가 크면(실내/도심 등) 채팅을 연 상태에서 재시도를 권장한다.
+        // 위치 자체는 이미 서버에 전달됐으므로 채팅을 막지는 않는다.
+        if (
+          typeof position.coords.accuracy === "number" &&
+          position.coords.accuracy > ACCURACY_WARN_THRESHOLD_METERS
+        ) {
+          renderSystem(
+            "위치 정확도가 낮습니다(오차 약 " +
+              Math.round(position.coords.accuracy) +
+              "m). 실외로 이동해서 위치를 다시 공유해보세요."
+          );
+        }
+      },
+      function (error) {
+        let reason = "위치를 가져오지 못했습니다.";
+        if (error.code === error.PERMISSION_DENIED) {
+          reason = "위치 권한이 거부되었습니다. 브라우저 설정에서 허용해주세요.";
+        } else if (error.code === error.TIMEOUT) {
+          reason = "위치 확인 시간이 초과되었습니다. 다시 시도해주세요.";
+        }
+        renderSystem(reason);
+        shareLocationBtn.disabled = false;
+        shareLocationBtn.textContent = "위치 공유하고 채팅 시작";
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
   }
 
   if (shareLocationBtn) {
-    shareLocationBtn.addEventListener("click", function () {
-      if (!("geolocation" in navigator)) {
-        renderSystem("이 브라우저는 위치 기능을 지원하지 않습니다.");
-        return;
-      }
-      if (!ws || ws.readyState !== WebSocket.OPEN) {
-        renderSystem("연결된 후에 위치를 공유할 수 있습니다.");
-        return;
-      }
-
-      shareLocationBtn.disabled = true;
-      shareLocationBtn.textContent = "📍 위치 확인 중…";
-
-      navigator.geolocation.getCurrentPosition(
-        function (position) {
-          // [Week2] 오차 반경(accuracy, 미터)도 함께 전송한다. 서버가 저장하고
-          // 브로드캐스트하는 값이며, 화면 표시는 renderLocation이 담당한다.
-          ws.send(
-            JSON.stringify({
-              type: "location",
-              latitude: position.coords.latitude,
-              longitude: position.coords.longitude,
-              accuracy: position.coords.accuracy,
-            })
-          );
-          shareLocationBtn.disabled = false;
-          shareLocationBtn.textContent = "📍 위치 공유하고 채팅 시작";
-          locationAlreadyShared = true;
-          showChatInput();
-
-          // 오차가 크면(실내/도심 등) 채팅을 연 상태에서 재시도를 권장한다.
-          // 위치 자체는 이미 서버에 전달됐으므로 채팅을 막지는 않는다.
-          if (
-            typeof position.coords.accuracy === "number" &&
-            position.coords.accuracy > ACCURACY_WARN_THRESHOLD_METERS
-          ) {
-            renderSystem(
-              "위치 정확도가 낮습니다(오차 약 " +
-                Math.round(position.coords.accuracy) +
-                "m). 실외로 이동해서 위치를 다시 공유해보세요."
-            );
-          }
-        },
-        function (error) {
-          // 권한 거부/시간 초과 등. 사용자에게 원인을 안내한다.
-          let reason = "위치를 가져오지 못했습니다.";
-          if (error.code === error.PERMISSION_DENIED) {
-            reason = "위치 권한이 거부되었습니다. 브라우저 설정에서 허용해주세요.";
-          } else if (error.code === error.TIMEOUT) {
-            reason = "위치 확인 시간이 초과되었습니다. 다시 시도해주세요.";
-          }
-          renderSystem(reason);
-          shareLocationBtn.disabled = false;
-          shareLocationBtn.textContent = "📍 위치 공유하고 채팅 시작";
-        },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-      );
-    });
+    shareLocationBtn.addEventListener("click", requestAndShareLocation);
   }
 
   // [Week2/GAP B] 위치 공유 없이 112 신고 경로로 넘어가는 버튼.
-  // tel: 링크로 실제 전화 연결을 시도하는 동시에, 서버에 이 선택을 알려
-  // 보호자에게 시스템 메시지("발견자가 위치 공유 없이 112 신고 경로로
-  // 안내받았습니다")가 전달되게 한다. 채팅 입력창은 열리지 않는다.
-  if (declineLocationBtn) {
-    declineLocationBtn.addEventListener("click", function () {
+  // 서버에 decline_location을 보내 보호자에게 시스템 메시지("발견자가 위치 공유
+  // 없이 112 신고 경로로 안내받았습니다")가 전달되게 한다. 채팅 입력창은 열리지 않는다.
+  if (emergency112Btn) {
+    emergency112Btn.addEventListener("click", function () {
       if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: "decline_location" }));
       }
-      showEmergencyNotice();
-      // tel: 링크의 기본 동작(전화 앱 열기)은 막지 않고 그대로 진행시킨다.
+      showEmergencyPanel();
+    });
+  }
+
+  if (backToLocationGateBtn) {
+    backToLocationGateBtn.addEventListener("click", function () {
+      showLocationGate();
     });
   }
 

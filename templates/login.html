@@ -1,68 +1,38 @@
 <!DOCTYPE html>
 <html lang="ko">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>보호자 로그인 — Re:Link</title>
-  <link rel="stylesheet" href="/static/style.css" />
-</head>
+<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title>보호자 로그인 — Re:Link</title><link rel="stylesheet" href="/static/style.css?v=20260725-7"/></head>
 <body>
-  <!-- [Week1] 전화번호(ID)+PIN(비밀번호) 로그인 폼.
-       예전의 "관리 링크(manage_token) 소유 = 인증" 방식을 대체한다. -->
-  <main class="landing">
-    <div class="landing-card">
-      <div class="landing-icon">🔐</div>
-      <h1>보호자 로그인</h1>
-      <p class="landing-desc">전화번호와 PIN으로 로그인하세요.</p>
+  <main class="screen-shell gap-6">
+    <header class="topbar">
+      <a class="button button-ghost button-icon" href="/" aria-label="홈으로"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg></a>
+      <a class="logo sm" href="/"><span class="logo-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="19" r="3"/><circle cx="18" cy="5" r="3"/><path d="M9 19c4 0 4-14 9-14"/></svg></span><span class="logo-word">Re:Link</span></a>
+      <span class="topbar-spacer" aria-hidden="true"></span>
+    </header>
 
-      {% if error == "invalid_credentials" %}
-      <p class="form-error" role="alert">전화번호 또는 PIN이 올바르지 않습니다.</p>
-      {% elif error == "locked" %}
-      <p class="form-error" role="alert">
-        로그인 시도가 5회 실패하여 계정이 잠겼습니다. 약 {{ minutes }}분 후 다시 시도해 주세요.
-      </p>
-      {% endif %}
-      {% if reset == "success" %}
-      <!-- [Week2] PIN 재설정 완료 후 /login?reset=success로 리다이렉트되어 여기 표시됨. -->
-      <p class="form-success" role="status">PIN이 재설정되었습니다. 새 PIN으로 로그인해 주세요.</p>
-      {% endif %}
+    <div class="intro"><h1 class="page-title">다시 오신 것을 환영해요</h1><p class="page-copy">로그인하여 태그를 관리하고, 대상자를 발견한 사람과 바로 연결하세요.</p></div>
 
-      <form class="register-form" action="/login" method="post">
-        <label class="form-label" for="guardian_phone">전화번호</label>
-        <input
-          id="guardian_phone"
-          name="guardian_phone"
-          class="form-input"
-          type="tel"
-          placeholder="010-0000-0000"
-          required
-          maxlength="13"
-        />
+    {% if reset == "success" %}
+    <!-- [Week2] PIN 재설정 완료 후 /login?reset=success로 리다이렉트되어 여기 표시됨. -->
+    <div class="alert" role="status"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg><div class="alert-title">PIN이 재설정되었습니다</div><div class="alert-description">새 PIN으로 로그인해 주세요.</div></div>
+    {% endif %}
 
-        <label class="form-label" for="guardian_pin">PIN</label>
-        <input
-          id="guardian_pin"
-          name="guardian_pin"
-          class="form-input"
-          type="password"
-          inputmode="numeric"
-          placeholder="숫자 6자리 이상"
-          minlength="6"
-          required
-          autocomplete="current-password"
-        />
+    {% if error == "locked" %}
+    <div class="alert destructive" role="alert"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg><div class="alert-title">계정이 일시적으로 잠겼습니다</div><div class="alert-description">5회 로그인에 실패했습니다. 보안을 위해 로그인이 잠시 중단되었습니다. 약 {{ minutes }}분 후 다시 시도하거나 PIN을 재설정하세요.</div></div>
+    {% elif error == "invalid_credentials" %}
+    <div class="alert destructive" role="alert"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4M12 17h.01"/></svg><div class="alert-title">휴대폰 번호 또는 PIN이 올바르지 않습니다</div><div class="alert-description">입력한 정보를 다시 확인해 주세요.</div></div>
+    {% endif %}
 
-        <button type="submit" class="btn-primary register-btn">로그인</button>
-      </form>
+    <form class="form-stack" action="/login" method="post">
+      <div class="field-group">
+        <div class="field"><label class="field-label" for="phone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.93.36 1.85.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.96.34 1.88.58 2.81.7A2 2 0 0 1 22 16.92z"/></svg>휴대폰 번호</label><input class="input" id="phone" name="guardian_phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="010-1234-5678" required/></div>
+        <div class="field"><label class="field-label" for="pin"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6M15.5 7.5l3 3L22 7l-3-3"/></svg>PIN</label><input class="input" id="pin" name="guardian_pin" type="password" inputmode="numeric" autocomplete="current-password" placeholder="6자리 이상 PIN" required/></div>
+        <button class="button button-lg w-full" type="submit">로그인</button>
+        <!-- [Week2] PIN 재설정(OTP) 흐름 연결 — /login/forgot-pin에서 SMS 인증번호로 재설정 -->
+        <p style="margin:0;text-align:center;color:var(--muted-foreground);font-size:.875rem">PIN을 잊으셨나요? <a class="text-link" href="/login/forgot-pin">PIN 재설정</a></p>
+      </div>
+    </form>
 
-      <p class="status-msg">
-        <!-- [Week2] PIN 재설정(OTP) 흐름 연결. -->
-        PIN을 잊으셨나요? <a href="/login/forgot-pin">PIN 재설정</a>
-      </p>
-      <p class="status-msg">
-        아직 계정이 없으신가요? <a href="/register">회원가입</a>
-      </p>
-    </div>
+    <p class="auth-footer">Re:Link가 처음이신가요? <a class="text-link" href="/register">계정 만들기</a></p>
   </main>
 </body>
 </html>

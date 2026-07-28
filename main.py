@@ -189,6 +189,16 @@ def on_startup() -> None:
         )
 
 
+@app.get("/", response_class=HTMLResponse)
+def home_page(request: Request) -> HTMLResponse:
+    """서비스 소개 홈 화면을 렌더링한다."""
+    return templates.TemplateResponse(
+        request,
+        "home.html",
+        {"current_year": datetime.now(timezone.utc).year},
+    )
+
+
 # ---------------------------------------------------------------------------
 # [Week1] 세션 헬퍼: 로그인 여부/소유권 판정의 단일 진입점
 # ---------------------------------------------------------------------------
@@ -510,9 +520,11 @@ def found_landing(request: Request, qr_token: str, db: Session = Depends(get_db)
     if child is None:
         raise HTTPException(status_code=404, detail="유효하지 않은 QR입니다.")
 
-    # 템플릿에는 qr_token만 넘긴다(child.name 등은 절대 전달하지 않음).
+    # 템플릿에는 개인정보 없이 QR 토큰과 활성 상태만 전달한다.
     return templates.TemplateResponse(
-        request, "found_landing.html", {"qr_token": qr_token}
+        request,
+        "found_landing.html",
+        {"qr_token": qr_token, "is_active": child.status == "missing"},
     )
 
 
@@ -1442,7 +1454,7 @@ async def reset_pin_submit(request: Request, db: Session = Depends(get_db)):
 
 
 @app.get("/guardian/dashboard", response_class=HTMLResponse)
-def guardian_dashboard(request: Request, db: Session = Depends(get_db)):
+def guardian_dashboard(request: Request, error: str | None = None, db: Session = Depends(get_db)):
     """[Week1] 보호자 대시보드: 로그인한 보호자의 아이 목록 + 진행 중인 채팅방.
 
     로그인하지 않았으면 /login으로 리다이렉트한다. 예전의 /guardian/{manage_token}
@@ -1490,6 +1502,11 @@ def guardian_dashboard(request: Request, db: Session = Depends(get_db)):
                 "name": child.name,
                 "status": child.status,
                 "qr_token": child.qr_token,
+                "serial": (
+                    child.qr_pool_entry.serial
+                    if child.qr_pool_entry is not None
+                    else child.qr_token[:12]
+                ),
                 "active_room_id": active_room.id if active_room else None,
             }
         )
@@ -1497,7 +1514,7 @@ def guardian_dashboard(request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse(
         request,
         "guardian_dashboard.html",
-        {"guardian_name": guardian.name, "children": children_display},
+        {"guardian_name": guardian.name, "children": children_display, "error": error},
     )
 
 
