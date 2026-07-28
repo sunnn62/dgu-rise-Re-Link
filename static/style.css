@@ -671,3 +671,124 @@ body {
 .btn-active-room:hover {
   background: #C2685F;
 }
+
+/* ---------- [Week2] 로그인/회원가입/PIN재설정 안내 메시지 ---------- */
+.form-error {
+  margin-top: 4px;
+  margin-bottom: 8px;
+  padding: 10px 14px;
+  font-size: 13.5px;
+  color: var(--red-dark, #D97C72);
+  background: #FBE3DF;
+  border-radius: 8px;
+  text-align: left;
+}
+
+.form-error a {
+  color: var(--red-dark, #D97C72);
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.form-success {
+  margin-top: 4px;
+  margin-bottom: 8px;
+  padding: 10px 14px;
+  font-size: 13.5px;
+  color: var(--blue-dark, #7C9764);
+  background: #EEF1E4;
+  border-radius: 8px;
+  text-align: left;
+}
+
+/* ---------- [Week2] 위치 오차(accuracy) 표시 ---------- */
+.location-accuracy {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.location-accuracy.is-imprecise {
+  color: #B45309; /* 오차가 커서 신뢰도가 낮음을 경고색으로 표시 */
+  font-weight: 600;
+}
+
+.location-accuracy-hint {
+  font-size: 11.5px;
+  color: var(--muted);
+  margin-top: 2px;
+  line-height: 1.4;
+}
+
+/* ---------- [Week2/GAP B] 위치 공유 게이트 + 112 대체 경로 ---------- */
+.location-gate {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  background: #f5f6f8;
+  border-top: 1px solid #ddd;
+}
+
+.location-gate-text {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text);
+  text-align: center;
+}
+
+.btn-decline-location {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 13px 16px;
+  font-size: 14.5px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--red-dark);
+  border-radius: 10px;
+  text-decoration: none;
+  min-height: 48px;
+}
+
+.btn-decline-location:hover {
+  background: #C2685F;
+}
+
+.emergency-notice {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px 16px;
+  background: #FBE3DF;
+  border-top: 1px solid var(--red);
+  text-align: center;
+}
+
+.emergency-notice p {
+  font-size: 14.5px;
+  line-height: 1.5;
+  color: var(--red-dark);
+}
+
+.btn-call-112 {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 14px 16px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--red-dark);
+  border-radius: 10px;
+  text-decoration: none;
+  min-height: 48px;
+}
+
+.btn-call-112:hover {
+  background: #C2685F;
+}

@@ -22,6 +22,10 @@
         로그인 시도가 5회 실패하여 계정이 잠겼습니다. 약 {{ minutes }}분 후 다시 시도해 주세요.
       </p>
       {% endif %}
+      {% if reset == "success" %}
+      <!-- [Week2] PIN 재설정 완료 후 /login?reset=success로 리다이렉트되어 여기 표시됨. -->
+      <p class="form-success" role="status">PIN이 재설정되었습니다. 새 PIN으로 로그인해 주세요.</p>
+      {% endif %}
 
       <form class="register-form" action="/login" method="post">
         <label class="form-label" for="guardian_phone">전화번호</label>
@@ -52,8 +56,8 @@
       </form>
 
       <p class="status-msg">
-        <!-- [Week1] PIN 재설정(OTP)은 Week2 스코프. 지금은 안내만 표시한다. -->
-        PIN을 잊으셨나요? PIN 재설정 기능은 다음 업데이트에서 제공됩니다.
+        <!-- [Week2] PIN 재설정(OTP) 흐름 연결. -->
+        PIN을 잊으셨나요? <a href="/login/forgot-pin">PIN 재설정</a>
       </p>
       <p class="status-msg">
         아직 계정이 없으신가요? <a href="/register">회원가입</a>

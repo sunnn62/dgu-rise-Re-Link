@@ -14,11 +14,27 @@
 
   <div id="messages" class="messages" aria-live="polite"></div>
 
-  <!-- 위치 공유 버튼: 발견자 화면에서만 표시된다(JS가 role을 보고 노출 결정). -->
-  <div id="locationBar" class="location-bar" hidden>
-    <button id="shareLocationBtn" type="button" class="btn-location">
-      📍 내 위치 공유하기
+  <!-- [Week2/GAP B] 위치 공유 게이트: 발견자는 위치를 먼저 공유해야 채팅이 열린다.
+       위치를 공유하고 싶지 않으면 채팅 대신 112 신고 대체 경로를 안내한다
+       (PLAN GAP B "위치 거부 시"). 발견자 화면에서만 표시된다(JS가 role을 보고 노출 결정).
+       보호자는 이 게이트 없이 바로 입력창을 사용할 수 있다. -->
+  <div id="locationGate" class="location-gate" hidden>
+    <p class="location-gate-text">
+      발견자는 위치를 공유해야 채팅을 시작할 수 있습니다.<br />
+      위급한 상황이면 위치 공유 없이 바로 112에 신고해 주세요.
+    </p>
+    <button id="shareLocationBtn" type="button" class="btn-location btn-primary">
+      📍 위치 공유하고 채팅 시작
     </button>
+    <a id="declineLocationBtn" href="tel:112" class="btn-decline-location">
+      🚨 위치 공유 없이 112 신고하기
+    </a>
+  </div>
+
+  <!-- [Week2/GAP B] 112 신고 경로로 넘어간 뒤 보여주는 확인 화면. 채팅 입력창은 열리지 않는다. -->
+  <div id="emergencyNotice" class="emergency-notice" hidden>
+    <p>112 신고 경로로 안내되었습니다. 보호자에게도 이 사실이 전달되었습니다.</p>
+    <a href="tel:112" class="btn-call-112">📞 112 전화 걸기</a>
   </div>
 
   <form id="chatForm" class="chat-input-bar" autocomplete="off">

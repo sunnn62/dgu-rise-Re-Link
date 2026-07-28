@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>새 PIN 설정 — Re:Link</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <!-- [Week2] PIN 재설정 2단계: 전화번호 + 받은 인증번호(OTP) + 새 PIN 입력.
+       OTP는 main.py(auth.verify_otp)에서 1회 시도만으로 소모된다(성공/실패 불문).
+       실패하면 /login/forgot-pin에서 새 인증번호를 다시 받아야 한다. -->
+  <main class="landing">
+    <div class="landing-card">
+      <div class="landing-icon">🔑</div>
+      <h1>새 PIN 설정</h1>
+      <p class="landing-desc">받으신 인증번호와 새로 사용할 PIN을 입력해 주세요.</p>
+
+      {% if error == "missing_fields" %}
+      <p class="form-error" role="alert">모든 항목을 입력해 주세요.</p>
+      {% elif error == "invalid_pin" %}
+      <p class="form-error" role="alert">PIN은 숫자 6자리 이상으로 입력해 주세요.</p>
+      {% elif error == "invalid_otp" %}
+      <p class="form-error" role="alert">
+        인증번호가 올바르지 않거나 만료되었습니다.
+        <a href="/login/forgot-pin">인증번호를 다시 받아주세요</a>.
+      </p>
+      {% endif %}
+
+      <form class="register-form" action="/login/reset-pin" method="post">
+        <label class="form-label" for="guardian_phone">전화번호</label>
+        <input
+          id="guardian_phone"
+          name="guardian_phone"
+          class="form-input"
+          type="tel"
+          placeholder="010-0000-0000"
+          value="{{ phone }}"
+          required
+          maxlength="13"
+        />
+
+        <label class="form-label" for="otp_code">인증번호 (6자리)</label>
+        <input
+          id="otp_code"
+          name="otp_code"
+          class="form-input"
+          type="text"
+          inputmode="numeric"
+          placeholder="숫자 6자리"
+          maxlength="6"
+          required
+        />
+
+        <label class="form-label" for="new_pin">새 PIN</label>
+        <input
+          id="new_pin"
+          name="new_pin"
+          class="form-input"
+          type="password"
+          inputmode="numeric"
+          placeholder="숫자 6자리 이상"
+          pattern="[0-9]{6,}"
+          minlength="6"
+          required
+          autocomplete="new-password"
+        />
+
+        <button type="submit" class="btn-primary register-btn">PIN 재설정</button>
+      </form>
+
+      <p class="status-msg">
+        인증번호를 못 받으셨나요? <a href="/login/forgot-pin">다시 받기</a>
+      </p>
+      <p class="status-msg">
+        <a href="/login">로그인으로 돌아가기</a>
+      </p>
+    </div>
+  </main>
+</body>
+</html>

@@ -145,9 +145,17 @@ class ChatRoom(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_new_uuid)
     child_id: Mapped[str] = mapped_column(String(36), ForeignKey("children.id"))
     status: Mapped[str] = mapped_column(String(20), default="waiting")  # waiting|active|closed
-    # 발견자가 위치를 공유했는지 여부(GAP B). finder는 위치 공유 전에는 텍스트를
-    # 보낼 수 없다. 보호자에게는 이 제약이 적용되지 않는다.
+    # [Week2 역할 변경] 이 방에서 위치가 "한 번이라도" 공유됐는지의 집계 기록.
+    # GAP B의 채팅 잠금 판정은 더 이상 이 필드가 아니라 발견자(익명 쿠키) 단위로
+    # 한다(auth의 발견자 세션 참고) — 발견자가 여러 명일 때 1번 발견자의 공유가
+    # 2번 발견자의 잠금까지 풀면 안 되기 때문. 보호자에게는 잠금 제약이 없다.
     location_shared: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    # [Week2] LLM 메시지 모더레이션(moderation.py)에서 악용 문구가 감지되면 해당
+    # 역할의 "이후" text 전송을 막기 위한 플래그. 판정에 시간이 걸려 이미 보낸
+    # 메시지 자체는 회수할 수 없으므로, 다음 메시지부터 차단하는 방식이다(PLAN
+    # "메시지 모더레이션" 참고). 기본값은 제한 없음(False).
+    finder_restricted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    guardian_restricted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
@@ -169,6 +177,15 @@ class Message(Base):
     message_type: Mapped[str] = mapped_column(String(20), default="text")  # text|location|system
     latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # [Week2] 위치 메시지의 오차 반경(미터, Geolocation API의 accuracy 값).
+    # GPS(실외)는 5~20m로 정확하지만 실내·도심에서는 WiFi/기지국 기반으로
+    # 50~100m 이상 튈 수 있어, 보호자가 이 위치를 얼마나 믿어야 하는지 판단할
+    # 근거로 함께 저장한다(PLAN GAP B "위치 오차 미표시" 개선 항목).
+    accuracy: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # [Week2] LLM 모더레이션(moderation.py)이 이 메시지를 악용 소지가 있다고
+    # 판단했는지 여부. 감사/추후 검토용 기록이며, 채팅 자체를 막지는 않는다
+    # (판정은 비동기로 사후에 붙으므로 이 메시지는 이미 전달된 뒤다).
+    flagged: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
     room: Mapped["ChatRoom"] = relationship(back_populates="messages")
