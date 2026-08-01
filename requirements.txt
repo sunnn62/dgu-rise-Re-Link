@@ -9,3 +9,6 @@ qrcode[pil]==8.0
 openai==2.49.0
 # [Week2] .env 파일에서 UPSTAGE_API_KEY 등 비밀값을 읽어 환경변수로 로드.
 python-dotenv==1.2.2
+# [Week3] POST /admin/qr-batch가 <form> 데이터(Form(...))를 받는 데 필요.
+# FastAPI/Starlette는 폼 파싱을 이 패키지에 위임하며, 없으면 요청 시 즉시 RuntimeError.
+python-multipart==0.0.20
