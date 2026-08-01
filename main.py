@@ -41,6 +41,7 @@ load_dotenv()
 from fastapi import (
     Depends,
     FastAPI,
+    Form,
     HTTPException,
     WebSocket,
     WebSocketDisconnect,
@@ -55,6 +56,7 @@ from sqlalchemy.orm import Session
 from starlette.requests import Request
 
 import auth  # [Week1] PIN 해싱/검증 + 세션 관리
+import generate_qr_batch  # [Week3] 배포 환경에서 QR 배치를 브라우저로 생성하는 데 재사용
 import moderation  # [Week2] LLM 기반 채팅 메시지 악용 탐지
 import qr_utils
 import sms
@@ -426,6 +428,68 @@ def download_child_qr(request: Request, qr_token: str, db: Session = Depends(get
         raise HTTPException(status_code=500, detail=f"QR 이미지를 생성하지 못했습니다: {error}") from error
 
     return Response(content=png_bytes, media_type="image/png")
+
+
+# [Week3] 배포 환경(Render 등)에서 서버 셸/One-Off Jobs 없이 QR 사전 발급 배치를
+# 만들기 위한 관리자 페이지. 원래는 로컬에서 generate_qr_batch.py를 직접 실행했지만,
+# 무료 배포 티어는 셸 접근을 안 주는 경우가 많아 같은 로직을 브라우저 요청으로
+# 트리거하도록 노출한다. 결과는 서버 디스크에 저장하지 않고 ZIP으로 바로 내려준다
+# (배포 환경 재시작 시 디스크가 초기화될 수 있으므로).
+_QR_BATCH_MAX_COUNT = 500
+
+
+@app.get("/admin/qr-batch", response_class=HTMLResponse)
+def qr_batch_form() -> str:
+    """QR 배치 생성 폼(관리자 키 + 개수 입력). 최소한의 마크업만 제공한다."""
+    return """<!DOCTYPE html>
+<html lang="ko"><head><meta charset="UTF-8"><title>QR 배치 생성(관리자)</title></head>
+<body>
+<h1>QR 배치 생성</h1>
+<p>관리자 키와 생성할 개수를 입력하면 QR PNG + serials.csv가 담긴 ZIP을 바로 다운로드합니다.</p>
+<form method="post" action="/admin/qr-batch">
+  <div><label>관리자 키 <input type="password" name="admin_key" required></label></div>
+  <div><label>생성 개수 <input type="number" name="count" value="10" min="1" max="500" required></label></div>
+  <button type="submit">생성 및 ZIP 다운로드</button>
+</form>
+</body></html>"""
+
+
+@app.post("/admin/qr-batch")
+def qr_batch_generate(
+    admin_key: str = Form(...), count: int = Form(...), db: Session = Depends(get_db)
+) -> Response:
+    """관리자 키 + 개수를 받아 QrToken 배치를 생성하고 ZIP으로 내려준다.
+
+    일반 <form> POST는 커스텀 헤더(X-Admin-Key)를 못 보내므로, 이 라우트만
+    예외적으로 관리자 키를 form 필드로 받는다. require_admin의 fail-closed
+    원칙은 그대로 유지한다(키 미설정/불일치 시 401).
+
+    Raises:
+        HTTPException(401): 관리자 키가 없거나 틀린 경우.
+        HTTPException(400): count가 유효 범위를 벗어난 경우.
+        HTTPException(500): QR 생성/DB 저장 중 오류가 발생한 경우.
+    """
+    if not ADMIN_API_KEY or not hmac.compare_digest(admin_key, ADMIN_API_KEY):
+        raise HTTPException(status_code=401, detail="관리자 키가 올바르지 않습니다.")
+
+    if count > _QR_BATCH_MAX_COUNT:
+        raise HTTPException(
+            status_code=400, detail=f"한 번에 최대 {_QR_BATCH_MAX_COUNT}개까지 생성할 수 있습니다."
+        )
+
+    try:
+        zip_bytes, created_count = generate_qr_batch.generate_batch_zip(count, db, BASE_URL)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    except RuntimeError as error:
+        raise HTTPException(status_code=500, detail=str(error)) from error
+
+    filename = f"qr_batch_{created_count}.zip"
+    return Response(
+        content=zip_bytes,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @app.post("/admin/rooms/{room_id}/close", dependencies=[Depends(require_admin)])

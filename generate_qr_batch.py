@@ -21,11 +21,14 @@ from __future__ import annotations
 
 import argparse
 import csv
+import io
 import os
 import secrets
 import sys
+import zipfile
 
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session
 
 import qr_utils
 from database import SessionLocal, init_db
@@ -138,6 +141,52 @@ def generate_batch(count: int, out_dir: str) -> int:
         ) from error
 
     return len(created)
+
+
+def generate_batch_zip(count: int, db: Session, base_url: str) -> tuple[bytes, int]:
+    """count개의 QrToken을 생성하고 PNG+CSV를 담은 ZIP 바이트를 메모리에서 반환한다.
+
+    generate_batch()와 달리 디스크에 파일을 쓰지 않는다. Render 같은 배포
+    환경은 재배포/재시작마다 파일시스템이 초기화되고 무료 티어는 Shell/One-Off
+    Jobs도 못 쓰기 때문에, 로컬에서 이 스크립트를 직접 실행하던 방식 대신
+    관리자 웹 라우트(POST /admin/qr-batch)가 이 함수를 호출해 브라우저
+    다운로드로 결과를 바로 돌려준다. DB 커밋은 이 함수 안에서 책임진다.
+
+    Raises:
+        ValueError: count가 1 미만인 경우.
+        RuntimeError: DB 저장 중 오류가 발생한 경우.
+    """
+    if count < 1:
+        raise ValueError("count는 1 이상이어야 합니다.")
+
+    created: list[tuple[str, str]] = []
+    try:
+        existing_serials = {s for (s,) in db.query(QrToken.serial).all()}
+        for _ in range(count):
+            serial = _generate_unique_serial(existing_serials)
+            existing_serials.add(serial)
+            qr_token = secrets.token_urlsafe(32)
+            db.add(QrToken(qr_token=qr_token, serial=serial))
+            created.append((serial, qr_token))
+        db.commit()
+    except SQLAlchemyError as error:
+        db.rollback()
+        raise RuntimeError(f"QrToken 저장 중 데이터베이스 오류가 발생했습니다: {error}") from error
+
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+        csv_buffer = io.StringIO()
+        csv_writer = csv.writer(csv_buffer)
+        csv_writer.writerow(["serial", "qr_token", "found_url", "png_file"])
+        for serial, qr_token in created:
+            found_url = qr_utils.build_found_url(base_url, qr_token)
+            png_name = f"{serial}.png"
+            png_bytes = qr_utils.generate_qr_png(found_url)
+            zip_file.writestr(png_name, png_bytes)
+            csv_writer.writerow([serial, qr_token, found_url, png_name])
+        zip_file.writestr("serials.csv", csv_buffer.getvalue())
+
+    return zip_buffer.getvalue(), len(created)
 
 
 def main(argv: list[str] | None = None) -> int:
