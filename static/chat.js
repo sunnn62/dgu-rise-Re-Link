@@ -204,7 +204,10 @@
       if (config.role === "finder") {
         locationAlreadyShared = !!data.location_shared;
         if (locationAlreadyShared) {
-          showChatInput();
+          // [Week3] showChatInput()만 부르면 "위치 다시 공유" 버튼이 재접속 시
+          // 안 나타나는 허점이 생긴다. unlockChatAfterLocation()을 그대로 써서
+          // 최초 공유 때와 동일하게 재공유 버튼도 함께 드러낸다.
+          unlockChatAfterLocation();
         } else {
           showLocationGate();
         }
@@ -304,6 +307,9 @@
   const shareLocationBtn = document.getElementById("shareLocationBtn");
   const emergency112Btn = document.getElementById("emergency112Btn");
   const backToLocationGateBtn = document.getElementById("backToLocationGateBtn");
+  // [Week3] 최초 위치 공유 후에도 다시 열어볼 수 있는 버튼. locationGate 안의
+  // GPS 공유/장소 검색 버튼을 그대로 재사용한다(별도 패널을 새로 만들지 않음).
+  const resendLocationBtn = document.getElementById("resendLocationBtn");
 
   // [Week2] 위치 잠금은 "발견자 단위"다(다른 발견자가 공유했어도 내 잠금은 안 풀림).
   // 진짜 판정은 서버가 접속 직후 보내는 gate 메시지(handleServerMessage)이며,
@@ -336,6 +342,13 @@
   function unlockChatAfterLocation() {
     locationAlreadyShared = true;
     showChatInput();
+    // [Week3] 최초 공유 이후에는 "위치 공유 없이 112 신고" 선택지가 더 이상
+    // 의미가 없다(이미 위치를 공유했으므로). 재공유 패널을 다시 열었을 때
+    // 이 버튼이 같이 보이면 혼란스러우니 영구히 숨긴다.
+    if (emergency112Btn) emergency112Btn.hidden = true;
+    // [Week3] 최초 공유 후에도 위치가 바뀌었거나 처음 값이 부정확했을 때 다시
+    // 공유할 수 있도록, 채팅 중에도 계속 쓸 수 있는 "위치 다시 공유" 버튼을 보여준다.
+    if (resendLocationBtn) resendLocationBtn.hidden = false;
   }
 
   if (config.role === "guardian") {
@@ -466,6 +479,15 @@
   if (backToLocationGateBtn) {
     backToLocationGateBtn.addEventListener("click", function () {
       showLocationGate();
+    });
+  }
+
+  // [Week3] 최초 공유 이후에도 위치를 다시 보낼 수 있는 진입점. 채팅 입력창은
+  // 그대로 둔 채(hideChatInput을 부르지 않음) locationGate만 다시 펼친다 —
+  // showLocationGate()와 달리 채팅을 막지 않는다.
+  if (resendLocationBtn) {
+    resendLocationBtn.addEventListener("click", function () {
+      if (locationGate) locationGate.hidden = !locationGate.hidden;
     });
   }
 
