@@ -12,3 +12,5 @@ python-dotenv==1.2.2
 # [Week3] POST /admin/qr-batch가 <form> 데이터(Form(...))를 받는 데 필요.
 # FastAPI/Starlette는 폼 파싱을 이 패키지에 위임하며, 없으면 요청 시 즉시 RuntimeError.
 python-multipart==0.0.20
+# [Week3] GET /api/place-search가 카카오 로컬 API를 서버에서 대신 호출(비동기)하는 데 사용.
+httpx==0.28.1

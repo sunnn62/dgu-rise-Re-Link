@@ -141,9 +141,17 @@
     link.href = mapUrl;
     link.target = "_blank";
     link.rel = "noopener noreferrer";
+    // [Week3] 장소 검색으로 지정한 위치는 content에 장소 이름이 담겨 온다(GPS
+    // 위치는 content가 항상 비어 있음). 있으면 좌표 대신 장소 이름을 보여주고,
+    // "검색으로 지정한 위치"임을 명시해 GPS 실시간 위치와 혼동하지 않게 한다.
+    const placeName = (msg.content || "").trim();
+    const titleText = placeName ? placeName : "공유된 위치";
+    const captionText = placeName ? "검색으로 지정한 위치 · 지도에서 보기" : "지도에서 보기";
     link.innerHTML =
       '<span class="location-bubble-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg></span>' +
-      '<span class="location-bubble-copy"><strong>공유된 위치</strong><span>지도에서 보기</span></span>';
+      '<span class="location-bubble-copy"><strong></strong><span class="location-bubble-caption"></span></span>';
+    link.querySelector("strong").textContent = titleText;
+    link.querySelector(".location-bubble-caption").textContent = captionText;
 
     bubbleCol.appendChild(link);
 
@@ -458,6 +466,101 @@
   if (backToLocationGateBtn) {
     backToLocationGateBtn.addEventListener("click", function () {
       showLocationGate();
+    });
+  }
+
+  // ---------- [Week3] 장소 검색으로 위치 직접 지정 (GPS 오차가 클 때 대안) ----------
+  // 실내 등에서 GPS/WiFi 위치 오차가 너무 크면(예: 2000m), 발견자가 장소 이름을
+  // 검색해서 좌표를 직접 지정할 수 있게 한다. 카카오 로컬 API 호출은 서버가
+  // 대신 하고(GET /api/place-search), 프론트는 결과 목록만 받아 보여준다.
+  // [주의] 아래는 기능 확인용 최소 마크업/스타일이다. 디자인은 "3주차_프론트
+  // 추가구현 요청.md"에 정리된 요청대로 다시 만들어야 한다.
+  const searchLocationToggleBtn = document.getElementById("searchLocationToggleBtn");
+  const locationSearchBox = document.getElementById("locationSearchBox");
+  const locationSearchInput = document.getElementById("locationSearchInput");
+  const locationSearchBtn = document.getElementById("locationSearchBtn");
+  const locationSearchResults = document.getElementById("locationSearchResults");
+
+  if (searchLocationToggleBtn && locationSearchBox) {
+    searchLocationToggleBtn.addEventListener("click", function () {
+      locationSearchBox.hidden = !locationSearchBox.hidden;
+      if (!locationSearchBox.hidden && locationSearchInput) {
+        locationSearchInput.focus();
+      }
+    });
+  }
+
+  async function performPlaceSearch() {
+    const query = (locationSearchInput.value || "").trim();
+    if (!query) return;
+
+    locationSearchBtn.disabled = true;
+    locationSearchResults.innerHTML = "";
+
+    try {
+      const response = await fetch(
+        "/api/place-search?query=" + encodeURIComponent(query)
+      );
+      if (!response.ok) {
+        renderSystem("장소 검색에 실패했습니다. 다시 시도해주세요.");
+        return;
+      }
+      const data = await response.json();
+      const results = data.results || [];
+      if (results.length === 0) {
+        const emptyEl = document.createElement("li");
+        emptyEl.textContent = "검색 결과가 없습니다.";
+        locationSearchResults.appendChild(emptyEl);
+        return;
+      }
+      results.forEach(function (place) {
+        const itemEl = document.createElement("li");
+        const btnEl = document.createElement("button");
+        btnEl.type = "button";
+        btnEl.textContent = place.name + " (" + place.address + ")";
+        btnEl.addEventListener("click", function () {
+          sendSearchedLocation(place);
+        });
+        itemEl.appendChild(btnEl);
+        locationSearchResults.appendChild(itemEl);
+      });
+    } catch (error) {
+      renderSystem("장소 검색 중 오류가 발생했습니다.");
+    } finally {
+      locationSearchBtn.disabled = false;
+    }
+  }
+
+  function sendSearchedLocation(place) {
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      renderSystem("연결된 후에 위치를 공유할 수 있습니다.");
+      return;
+    }
+    // [Week3] 검색으로 지정한 위치는 GPS 오차 개념이 없으므로 accuracy를 보내지
+    // 않는다(서버가 null로 저장 -> renderLocation이 오차 표시를 생략).
+    ws.send(
+      JSON.stringify({
+        type: "location",
+        latitude: place.latitude,
+        longitude: place.longitude,
+        place_name: place.name,
+      })
+    );
+    if (locationSearchResults) locationSearchResults.innerHTML = "";
+    if (locationSearchInput) locationSearchInput.value = "";
+    if (locationSearchBox) locationSearchBox.hidden = true;
+    unlockChatAfterLocation();
+  }
+
+  if (locationSearchBtn) {
+    locationSearchBtn.addEventListener("click", performPlaceSearch);
+  }
+  if (locationSearchInput) {
+    locationSearchInput.addEventListener("keydown", function (event) {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        performPlaceSearch();
+      }
     });
   }
 

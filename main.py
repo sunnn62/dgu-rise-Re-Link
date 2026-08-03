@@ -28,6 +28,9 @@
   POST /guardian/dashboard/children (아이 추가), .../{child_id}/toggle, .../{child_id}/delete
 - [Week3] 가족 초대: POST /guardian/dashboard/children/{child_id}/invite (코드 발급),
   POST /guardian/dashboard/join (코드로 합류)
+- [Week3] 장소 검색(GET /api/place-search): 실내 등 GPS 오차가 큰 상황에서 발견자가
+  장소명을 검색해 좌표를 직접 지정할 수 있도록 카카오 로컬 API를 서버가 대신 호출한다
+  (REST API 키를 클라이언트에 노출하지 않기 위한 프록시).
 - 관리자(개발용 시드 도구): 아이 등록/QR 발급/상태 전환/방 종료 (POST /admin/children 등)
 - 발견자: 랜딩(GET /found/{qr_token}), 발견 신고 시작(POST /found/{qr_token}/start)
 - 채팅 화면(GET /chat/{room_id}) 및 실시간 WebSocket(/ws/chat/{room_id})
@@ -41,6 +44,8 @@ import os
 import secrets
 from datetime import datetime, timezone
 from urllib.parse import urlparse
+
+import httpx
 
 # [Week2] .env 파일에서 UPSTAGE_API_KEY 등 비밀값을 환경변수로 로드한다.
 # moderation 모듈이 os.getenv("UPSTAGE_API_KEY")를 읽기 전에 실행돼야 하므로
@@ -96,6 +101,13 @@ manager = ConnectionManager()
 # 변수로 설정한다(키 자체가 없는 것과 다름). os.getenv의 기본값은 키가 아예
 # 없을 때만 쓰이므로, "or"로 빈 문자열도 기본값으로 치환되도록 명시적으로 처리한다.
 BASE_URL = os.getenv("BASE_URL") or "http://localhost:8000"
+
+# [Week3] 카카오 로컬 API(장소 검색) REST API 키. 없으면 /api/place-search가
+# 503으로 응답한다(fail-closed — 검색 UI는 부가 기능이라 서버 기동 자체를
+# 막지는 않지만, 키 없이 카카오 API를 호출할 수는 없으므로 그 기능만 비활성화).
+KAKAO_REST_API_KEY = os.getenv("KAKAO_REST_API_KEY") or None
+_KAKAO_LOCAL_SEARCH_URL = "https://dapi.kakao.com/v2/local/search/keyword.json"
+_PLACE_SEARCH_TIMEOUT_SECONDS = 5.0
 
 # qr_token 길이(32바이트 이상 요구사항 충족).
 QR_TOKEN_BYTES = 32
@@ -622,6 +634,56 @@ def found_landing(request: Request, qr_token: str, db: Session = Depends(get_db)
     )
 
 
+@app.get("/api/place-search")
+async def place_search(query: str) -> dict:
+    """[Week3] 카카오 로컬 API(키워드 장소검색)를 서버가 대신 호출하는 프록시.
+
+    실내 등 GPS/WiFi 위치 정확도가 낮은 상황에서, 발견자가 "OO편의점"처럼
+    장소 이름을 검색해 좌표를 직접 지정할 수 있게 한다. REST API 키는 서버
+    환경변수에만 있고 클라이언트(chat.js)에는 노출하지 않는다.
+
+    Raises:
+        HTTPException(503): KAKAO_REST_API_KEY가 설정되지 않은 경우.
+        HTTPException(502): 카카오 API 호출이 실패하거나 타임아웃된 경우.
+    """
+    if not KAKAO_REST_API_KEY:
+        raise HTTPException(status_code=503, detail="장소 검색 기능이 아직 설정되지 않았습니다.")
+
+    query = query.strip()
+    if not query:
+        return {"results": []}
+
+    try:
+        async with httpx.AsyncClient(timeout=_PLACE_SEARCH_TIMEOUT_SECONDS) as client:
+            response = await client.get(
+                _KAKAO_LOCAL_SEARCH_URL,
+                params={"query": query, "size": 10},
+                headers={"Authorization": f"KakaoAK {KAKAO_REST_API_KEY}"},
+            )
+        response.raise_for_status()
+    except httpx.TimeoutException as error:
+        raise HTTPException(status_code=502, detail="장소 검색 응답이 지연되고 있습니다. 다시 시도해 주세요.") from error
+    except httpx.HTTPError as error:
+        raise HTTPException(status_code=502, detail=f"장소 검색 중 오류가 발생했습니다: {error}") from error
+
+    try:
+        documents = response.json().get("documents", [])
+    except ValueError as error:
+        raise HTTPException(status_code=502, detail=f"장소 검색 응답을 해석하지 못했습니다: {error}") from error
+
+    results = [
+        {
+            "name": doc.get("place_name", ""),
+            "address": doc.get("road_address_name") or doc.get("address_name", ""),
+            "latitude": float(doc["y"]),
+            "longitude": float(doc["x"]),
+        }
+        for doc in documents
+        if "y" in doc and "x" in doc
+    ]
+    return {"results": results}
+
+
 @app.get("/chat/{room_id}", response_class=HTMLResponse)
 def chat_page(
     request: Request,
@@ -1077,10 +1139,16 @@ async def _receive_loop(
                 )
                 continue
             latitude, longitude, accuracy = coords
+            # [Week3] 장소 검색(place_name)으로 지정한 위치는 GPS 오차 개념이 없으므로
+            # accuracy가 안 실려온다(클라이언트가 보내지 않음). content에 장소 이름을
+            # 담아 renderLocation이 "GPS 위치"와 구분해 표시할 수 있게 한다 — 위치
+            # 메시지는 원래 content를 쓰지 않으므로(좌표로 표현) 이 필드를 재사용해도
+            # 다른 로직과 충돌하지 않는다.
+            place_name = str(payload.get("place_name", "")).strip()[:200]
             message = Message(
                 room_id=room_id,
                 sender_role=role,
-                content="",  # 위치 메시지는 좌표로 표현하므로 본문은 비운다.
+                content=place_name,
                 message_type="location",
                 latitude=latitude,
                 longitude=longitude,
