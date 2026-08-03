@@ -314,6 +314,7 @@ def _get_or_create_guardian(db: Session, phone: str, name: str, pin: str) -> Gua
     Raises:
         SQLAlchemyError: 조회/삽입 중 DB 오류. 호출부에서 처리한다.
     """
+    phone = auth.normalize_phone(phone)
     guardian = db.query(Guardian).filter(Guardian.phone == phone).one_or_none()
     if guardian is not None:
         return guardian
@@ -1443,7 +1444,9 @@ async def register_submit(request: Request, db: Session = Depends(get_db)):
     """
     form = await request.form()
     guardian_name = str(form.get("guardian_name", "")).strip()
-    guardian_phone = str(form.get("guardian_phone", "")).strip()
+    # [Week3 버그 수정] 하이픈 포함/미포함 입력이 서로 다른 계정으로 취급되지
+    # 않도록 정규화해서 저장한다(auth.normalize_phone 주석 참고).
+    guardian_phone = auth.normalize_phone(str(form.get("guardian_phone", "")).strip())
     guardian_pin = str(form.get("guardian_pin", "")).strip()
     privacy_consent = str(form.get("privacy_consent", "")).strip()
 
@@ -1524,7 +1527,7 @@ async def login_submit(request: Request, db: Session = Depends(get_db)):
         HTTPException(500): DB 오류 시.
     """
     form = await request.form()
-    guardian_phone = str(form.get("guardian_phone", "")).strip()
+    guardian_phone = auth.normalize_phone(str(form.get("guardian_phone", "")).strip())
     guardian_pin = str(form.get("guardian_pin", "")).strip()
 
     try:
@@ -1620,7 +1623,7 @@ async def forgot_pin_submit(request: Request, db: Session = Depends(get_db)):
         HTTPException(500): DB 오류 시.
     """
     form = await request.form()
-    guardian_phone = str(form.get("guardian_phone", "")).strip()
+    guardian_phone = auth.normalize_phone(str(form.get("guardian_phone", "")).strip())
 
     if not guardian_phone:
         return RedirectResponse(url="/login/forgot-pin?error=missing_phone", status_code=303)
@@ -1672,7 +1675,7 @@ async def reset_pin_submit(request: Request, db: Session = Depends(get_db)):
         HTTPException(500): DB 오류 시.
     """
     form = await request.form()
-    guardian_phone = str(form.get("guardian_phone", "")).strip()
+    guardian_phone = auth.normalize_phone(str(form.get("guardian_phone", "")).strip())
     otp_code = str(form.get("otp_code", "")).strip()
     new_pin = str(form.get("new_pin", "")).strip()
 
