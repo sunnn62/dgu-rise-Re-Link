@@ -22,8 +22,9 @@ API가 OpenAI의 response_format=json_object/tool_choice를 동일하게 지원�
    ChatRoom.finder_restricted/guardian_restricted를 True로 세팅한다(이 모듈은
    판정만 하고, DB 갱신은 main.py의 책임).
 
-이 모듈이 담당하는 것은 오직 check_message(content) -> bool 하나다. DB 접근이나
-WebSocket 브로드캐스트는 전혀 하지 않는다(관심사 분리, main.py가 오케스트레이션).
+이 모듈이 담당하는 것은 오직 check_message(content, history=None) -> bool 하나다.
+DB 접근이나 WebSocket 브로드캐스트는 전혀 하지 않는다(관심사 분리, main.py가
+오케스트레이션).
 """
 
 from __future__ import annotations
@@ -49,17 +50,31 @@ _REQUEST_TIMEOUT_SECONDS = 5.0
 _SYSTEM_PROMPT = (
     "당신은 실종아동 발견자-보호자 익명 채팅의 안전 모니터링 시스템입니다. "
     "발견자와 보호자는 서로의 실명과 전화번호를 모르는 상태로 대화합니다. "
-    "입력된 메시지 한 건을 검사해 아래 기준 중 하나라도 명백히 해당하면 위반으로 "
-    "판정하세요:\n"
+    "[최근 대화 흐름]이 함께 주어지면, 그 맥락 속에서 [판정 대상 메시지]를 "
+    "평가하세요 — 메시지 하나만 보면 평범해도, 여러 메시지에 걸쳐 서서히 "
+    "개인정보를 캐내거나 신뢰를 쌓은 뒤 위험한 요구로 이어지는 패턴이라면 "
+    "위반으로 판정해야 합니다. 아래 기준 중 하나라도 명백히 해당하면 위반입니다:\n"
     "1) 상대방의 실명, 전화번호, 주소, 계좌번호 등 개인정보를 캐내려는 시도\n"
     "2) 금전이나 대가를 요구하는 협박·갈취\n"
-    "3) 폭력, 성적 착취, 그 외 명백한 범죄 목적의 위협\n\n"
+    "3) 폭력, 성적 착취, 그 외 명백한 범죄 목적의 위협\n"
+    "4) 여러 메시지에 걸쳐 위 1~3에 해당하는 상황으로 서서히 유도하는 패턴\n\n"
     "다급한 정상 상황 설명(예: 위치 설명, 안전 우려 표현)은 위반이 아닙니다. "
     "애매하면 위반이 아닌 것으로(false) 판정하세요 — 오탐으로 정상적인 구조 "
     "대화를 막는 것이 더 큰 문제입니다.\n\n"
     '반드시 다른 설명 없이 정확히 이 형식의 JSON 한 줄만 출력하세요: '
     '{"violates_policy": true} 또는 {"violates_policy": false}'
 )
+
+_ROLE_LABELS = {"finder": "발견자", "guardian": "보호자"}
+
+
+def _format_context(history: list[dict[str, str]]) -> str:
+    """최근 대화 이력을 "발견자: ..." / "보호자: ..." 형태의 텍스트로 정리한다."""
+    lines = []
+    for item in history:
+        label = _ROLE_LABELS.get(item.get("role", ""), "상대방")
+        lines.append(f"{label}: {item.get('content', '')}")
+    return "\n".join(lines)
 
 
 def _get_client() -> "openai.OpenAI | None":
@@ -95,8 +110,13 @@ def _parse_violation(raw_text: str) -> bool:
     return bool(payload["violates_policy"])
 
 
-def check_message(content: str) -> bool:
+def check_message(content: str, history: list[dict[str, str]] | None = None) -> bool:
     """메시지 내용이 악용 정책을 위반하는지 Upstage Solar API로 판정한다.
+
+    [Week3] history를 주면(같은 방의 최근 대화, {"role": "finder"|"guardian",
+    "content": str} 형태 리스트, 오래된 순) 이번 메시지 하나만 보지 않고 최근
+    대화 맥락까지 함께 판단한다. 여러 메시지에 걸쳐 서서히 드러나는 악용
+    패턴을 잡기 위함이다. history가 없으면 이번 메시지만으로 판단한다.
 
     이 함수는 절대 예외를 던지지 않는다(fail-open 계약). 어떤 이유로든 판정에
     실패하면 False(위반 아님, 허용)를 반환한다. 호출부(main.py)는 이 결과를
@@ -113,13 +133,20 @@ def check_message(content: str) -> bool:
         # API 키 미설정. fail-open.
         return False
 
+    if history:
+        user_content = (
+            f"[최근 대화 흐름]\n{_format_context(history)}\n\n[판정 대상 메시지]\n{content}"
+        )
+    else:
+        user_content = content
+
     try:
         response = client.chat.completions.create(
             model=_MODEL,
             max_tokens=64,
             messages=[
                 {"role": "system", "content": _SYSTEM_PROMPT},
-                {"role": "user", "content": content},
+                {"role": "user", "content": user_content},
             ],
         )
     except openai.APITimeoutError:

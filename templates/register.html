@@ -9,10 +9,10 @@
       <span class="topbar-spacer" aria-hidden="true"></span>
     </header>
 
-    <div class="intro"><h1 class="page-title">보호자 계정 만들기</h1><p class="page-copy">휴대폰 번호가 로그인 아이디입니다. 태그는 나중에 대시보드에서 더 등록할 수 있습니다.</p></div>
+    <div class="intro"><h1 class="page-title">보호자 계정 만들기</h1><p class="page-copy">휴대폰 번호가 로그인 아이디입니다. 태그(QR) 등록은 로그인 후 대시보드에서 진행합니다.</p></div>
 
     {% if error %}
-    <div class="alert destructive" role="alert"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4M12 17h.01"/></svg><div class="alert-title">가입 정보를 확인해 주세요</div><div class="alert-description">{% if error == "missing_fields" %}모든 항목을 입력해 주세요.{% elif error == "invalid_pin" %}PIN은 최소 6자리 숫자여야 합니다.{% elif error == "phone_taken" %}이미 가입된 번호입니다. 로그인해 주세요.{% elif error == "invalid_serial" %}태그에 인쇄된 코드를 확인해 주세요.{% elif error == "serial_used" %}이미 등록된 QR 태그입니다.{% endif %}</div></div>
+    <div class="alert destructive" role="alert"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4M12 17h.01"/></svg><div class="alert-title">가입 정보를 확인해 주세요</div><div class="alert-description">{% if error == "missing_fields" %}모든 항목을 입력해 주세요.{% elif error == "invalid_pin" %}PIN은 최소 6자리 숫자여야 합니다.{% elif error == "phone_taken" %}이미 가입된 번호입니다. 로그인해 주세요.{% elif error == "consent_required" %}개인정보 수집·이용에 동의해야 가입할 수 있습니다.{% endif %}</div></div>
     {% endif %}
 
     <form class="form-stack" action="/register" method="post">
@@ -24,9 +24,19 @@
       </fieldset>
 
       <fieldset class="fieldset">
-        <legend class="legend">첫 등록 대상자</legend>
-        <div class="field"><label class="field-label" for="name"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>대상자 이름</label><input class="input" id="name" name="child_name" placeholder="예: 김순자" required/><span class="field-description">이 이름은 보호자 본인만 볼 수 있으며, 발견자에게는 절대 표시되지 않습니다.</span></div>
-        <div class="field"><label class="field-label" for="serial"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h7v7h-7z"/></svg>태그 일련번호</label><input class="input mono" id="serial" name="serial" placeholder="RL-AB2C-9KMP" required/><span class="field-description">키트에 동봉된 QR 스티커에 인쇄되어 있습니다.</span></div>
+        <legend class="legend">개인정보 수집·이용 동의</legend>
+        <div class="field-description" style="margin-bottom:.5rem">
+          <ul style="margin:0;padding-left:1.2rem;line-height:1.6">
+            <li>수집 항목: 휴대폰 번호(로그인 아이디), PIN(암호화 저장)</li>
+            <li>수집 목적: 보호자 인증 및 로그인, 실종 알림 발송</li>
+            <li>채팅 이용 시, 악용 방지를 위해 <strong>AI가 채팅 메시지 내용을 자동으로 읽고 분석</strong>할 수 있습니다(위협·개인정보 유출 시도 등 탐지 목적)</li>
+            <li>보유 기간: 회원 탈퇴 시까지</li>
+          </ul>
+        </div>
+        <label class="field" style="flex-direction:row;align-items:center;gap:.5rem">
+          <input type="checkbox" id="privacy_consent" name="privacy_consent" value="true" required/>
+          <span>위 내용을 확인했으며 개인정보 수집·이용에 동의합니다.</span>
+        </label>
       </fieldset>
 
       <button class="button button-lg w-full" type="submit">계정 만들기</button>

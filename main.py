@@ -7,14 +7,27 @@
 - 회원가입(/register), 로그인(/login), 로그아웃(/logout)이 실제로 동작한다.
 - 보호자 대시보드는 URL에 토큰을 담지 않는 세션 기반 라우팅(/guardian/dashboard)이다.
 - 채팅방 접근(GET /chat/{room_id}?role=guardian, WS /ws/chat/{room_id}?role=guardian)은
-  더 이상 방마다 발급되는 1회성 토큰이 아니라, 매번 "로그인 세션의 guardian_id ==
-  이 방의 아이 소유자(child.guardian_id)"를 재검증한다(GAP B, 다른 보호자의 방에
-  들어가지 못하게 막는 소유권 검증).
+  더 이상 방마다 발급되는 1회성 토큰이 아니라, 매번 "로그인 세션의 guardian_id가
+  이 방의 아이에 연결돼(ChildGuardian) 있는가"를 재검증한다(GAP B, 다른 보호자의
+  방에 들어가지 못하게 막는 소유권 검증).
+
+=== [Week3] 가족 초대 기능(아이 한 명 ↔ 보호자 여러 명) ===
+아이 한 명에 보호자가 여러 명 연결될 수 있다(예: 부모 두 명이 같은 아이를 함께
+관리). Child와 Guardian은 ChildGuardian 중간 테이블로 다대다 관계를 맺는다.
+- 최초 등록자(role="primary")가 초대 코드(POST .../{child_id}/invite)를 발급하면
+  8자리 코드가 24시간 동안 유효하다(QrToken의 시리얼 매칭 패턴을 재사용).
+- 다른 보호자가 로그인 후 그 코드를 입력(POST /guardian/dashboard/join)하면
+  ChildGuardian(role="invited") 레코드가 생기고, 그 즉시 코드는 소멸(1회용)한다.
+- 두 role 모두 채팅 열람/실종 신고 토글/QR 다운로드는 동일하게 가능하다.
+  아이 삭제와 초대 코드 발급만 role="primary"에게 제한된다(초대받은 사람의
+  실수나 다툼으로 아이 데이터가 통째로 사라지는 사고 방지).
 
 라우트 구성:
 - [Week1] 보호자 회원가입/로그인/로그아웃: GET·POST /register, GET·POST /login, POST /logout
 - [Week1] 보호자 대시보드(세션 기반): GET /guardian/dashboard,
   POST /guardian/dashboard/children (아이 추가), .../{child_id}/toggle, .../{child_id}/delete
+- [Week3] 가족 초대: POST /guardian/dashboard/children/{child_id}/invite (코드 발급),
+  POST /guardian/dashboard/join (코드로 합류)
 - 관리자(개발용 시드 도구): 아이 등록/QR 발급/상태 전환/방 종료 (POST /admin/children 등)
 - 발견자: 랜딩(GET /found/{qr_token}), 발견 신고 시작(POST /found/{qr_token}/start)
 - 채팅 화면(GET /chat/{room_id}) 및 실시간 WebSocket(/ws/chat/{room_id})
@@ -51,6 +64,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
+from sqlalchemy import update
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 from starlette.requests import Request
@@ -61,7 +75,7 @@ import moderation  # [Week2] LLM 기반 채팅 메시지 악용 탐지
 import qr_utils
 import sms
 from database import SessionLocal, get_db, init_db
-from models import ChatRoom, Child, Guardian, Message, QrToken
+from models import ChatRoom, Child, ChildGuardian, Guardian, InviteCode, Message, QrToken
 from websocket_manager import ConnectionManager
 
 # 이 파일이 위치한 디렉터리 기준으로 templates/static 경로를 잡는다(실행 위치 무관).
@@ -319,11 +333,13 @@ def create_child(payload: ChildCreateRequest, db: Session = Depends(get_db)) -> 
         )
         child = Child(
             name=payload.name,
-            guardian_id=guardian.id,
+            primary_guardian_id=guardian.id,
             status=payload.status,
             qr_token=qr_token,
         )
         db.add(child)
+        db.flush()  # [Week3] ChildGuardian이 참조할 child.id를 확보하기 위해 flush.
+        db.add(ChildGuardian(child_id=child.id, guardian_id=guardian.id, role="primary"))
         db.commit()
     except IntegrityError as error:
         db.rollback()
@@ -414,7 +430,21 @@ def download_child_qr(request: Request, qr_token: str, db: Session = Depends(get
 
     if not _is_admin_request(request):
         guardian = get_current_guardian(request, db)
-        if guardian is None or child.guardian_id != guardian.id:
+        if guardian is None:
+            raise HTTPException(
+                status_code=403,
+                detail="본인이 등록한 아이의 QR만 다운로드할 수 있습니다. 로그인해주세요.",
+            )
+        # [Week3] "소유자"가 아니라 "연결된 보호자인가"로 판정한다(초대로 합류한
+        # 가족 구성원도 QR을 다시 받을 수 있어야 하므로).
+        try:
+            linked = _is_guardian_linked_to_child(db, guardian.id, child.id)
+        except SQLAlchemyError as error:
+            raise HTTPException(
+                status_code=500,
+                detail=f"권한 확인 중 데이터베이스 오류가 발생했습니다: {error}",
+            ) from error
+        if not linked:
             raise HTTPException(
                 status_code=403,
                 detail="본인이 등록한 아이의 QR만 다운로드할 수 있습니다. 로그인해주세요.",
@@ -602,10 +632,12 @@ def chat_page(
     """발견자·보호자 공용 채팅 화면(HTML).
 
     [Week1/GAP B] 보호자(role=guardian)는 더 이상 URL의 1회성 토큰이 아니라
-    로그인 세션으로 인증한다. 이 방의 아이(child)가 로그인한 보호자 소유인지
-    (child.guardian_id == session.guardian_id)를 반드시 재검증한다 — 그렇지
-    않으면 로그인한 보호자 A가 room_id만 알아내면 보호자 B의 아이 방에 들어갈
-    수 있는 문제가 생긴다(PLAN GAP B "role 판정 + 방 소유권" 참고).
+    로그인 세션으로 인증한다. 이 방의 아이(child)에 로그인한 보호자가 연결돼
+    있는지(ChildGuardian 조회)를 반드시 재검증한다 — 그렇지 않으면 로그인한
+    보호자 A가 room_id만 알아내면 보호자 B의 아이 방에 들어갈 수 있는 문제가
+    생긴다(PLAN GAP B "role 판정 + 방 소유권" 참고). [Week3] 아이 한 명에
+    보호자가 여러 명 연결될 수 있게 되면서, "소유자 1명과 일치하는가"가 아니라
+    "연결된 보호자 목록에 포함되는가"로 검증 방식이 바뀌었다.
 
     Raises:
         HTTPException(404): 방이 없을 때.
@@ -628,9 +660,20 @@ def chat_page(
         raise HTTPException(status_code=404, detail="존재하지 않는 채팅방입니다.")
 
     if role == "guardian":
-        # [Week1/GAP B] 세션 기반 소유권 재검증. 로그인 안 됨/다른 보호자의 아이면 거부.
+        # [Week1/GAP B] 세션 기반 소유권 재검증. 로그인 안 됨/연결 안 된 보호자면 거부.
         guardian = get_current_guardian(request, db)
-        if guardian is None or room.child.guardian_id != guardian.id:
+        if guardian is None:
+            raise HTTPException(
+                status_code=403, detail="이 채팅방에 접근할 권한이 없습니다. 로그인해주세요."
+            )
+        try:
+            linked = _is_guardian_linked_to_child(db, guardian.id, room.child_id)
+        except SQLAlchemyError as error:
+            raise HTTPException(
+                status_code=500,
+                detail=f"권한 확인 중 데이터베이스 오류가 발생했습니다: {error}",
+            ) from error
+        if not linked:
             raise HTTPException(
                 status_code=403, detail="이 채팅방에 접근할 권한이 없습니다. 로그인해주세요."
             )
@@ -749,12 +792,25 @@ def start_chat(qr_token: str, db: Session = Depends(get_db)) -> StartChatRespons
         "[아이발견알림] 아이를 발견한 분과 실시간 채팅이 시작되었습니다. "
         "Re:Link에 로그인하여 대시보드에서 채팅방을 확인해 주세요."
     )
-    # SMS 발송 실패가 채팅방 생성 자체를 막지 않도록 결과만 확인하고 진행한다.
-    # 보호자 전화번호는 Guardian 관계를 통해 조회한다(Child에서 분리됨).
-    sms_sent = sms.send_sms(child.guardian.phone, sms_message)
-    if not sms_sent:
-        # 목업에서는 항상 True지만, 실제 API 전환 시 실패 로깅 지점으로 사용한다.
-        print(f"[경고] 보호자 SMS 발송 실패(room_id={room.id}). 재발송 로직이 필요합니다.")
+    # [버그 수정] Child.guardian relationship은 다대다 전환(Week3)으로 없어졌다
+    # (Child.guardian_links를 통해 ChildGuardian -> Guardian으로 가야 한다).
+    # [Week3] 이 아이에 연결된 보호자 "전원"에게 알린다 — 가족 여러 명이 함께
+    # 관리하는 시나리오에서는 초대로 합류한 사람도 발견 사실을 알아야 하므로,
+    # 최초 등록자 한 명에게만 보내는 건 이 기능의 취지와 맞지 않는다.
+    try:
+        guardian_phones = [link.guardian.phone for link in child.guardian_links]
+    except SQLAlchemyError as error:
+        # 연결된 보호자 조회 실패는 SMS 발송 실패로만 취급하고, 방 생성 자체는
+        # 막지 않는다(SMS 발송 실패가 채팅방 생성을 막지 않는다는 기존 원칙과 동일).
+        print(f"[경고] 보호자 목록 조회 실패(room_id={room.id}): {error}")
+        guardian_phones = []
+
+    for phone in guardian_phones:
+        # SMS 발송 실패가 채팅방 생성 자체를 막지 않도록 결과만 확인하고 진행한다.
+        sms_sent = sms.send_sms(phone, sms_message)
+        if not sms_sent:
+            # 목업에서는 항상 True지만, 실제 API 전환 시 실패 로깅 지점으로 사용한다.
+            print(f"[경고] 보호자 SMS 발송 실패(room_id={room.id}). 재발송 로직이 필요합니다.")
 
     return StartChatResponse(
         room_id=room.id,
@@ -770,7 +826,9 @@ async def chat_websocket(websocket: WebSocket, room_id: str, role: str = "finder
     - role 쿼리 파라미터(finder|guardian)를 서버가 신뢰의 기준으로 삼는다.
     - [Week1/GAP B] 보호자(role=guardian)는 더 이상 guardian_token이 아니라
       세션 쿠키로 인증한다. 쿠키의 세션이 가리키는 guardian_id가 이 방의
-      아이 소유자(child.guardian_id)와 일치해야만 연결을 허용한다.
+      아이에 연결돼(ChildGuardian) 있어야만 연결을 허용한다. [Week3] 아이 한
+      명에 보호자가 여러 명 연결될 수 있게 되면서 단순 일치 비교가 목록 포함
+      검사로 바뀌었다.
     - [GAP A] closed 상태이거나, 아이가 missing 상태가 아니면 연결을 거부한다.
     - 수신한 모든 메시지는 즉시 DB에 저장한 뒤 같은 방에 브로드캐스트한다.
     """
@@ -784,10 +842,9 @@ async def chat_websocket(websocket: WebSocket, room_id: str, role: str = "finder
     try:
         try:
             room = db.query(ChatRoom).filter(ChatRoom.id == room_id).one_or_none()
-            # GAP A/B 검증에 쓸 아이 상태·소유자를 같은 트랜잭션에서 함께 조회한다
+            # GAP A 검증에 쓸 아이 상태를 같은 트랜잭션에서 함께 조회한다
             # (child 관계의 lazy-load도 DB 쿼리이므로 여기서 함께 감싼다).
             child_status = room.child.status if (room and room.child) else None
-            child_guardian_id = room.child.guardian_id if (room and room.child) else None
         except SQLAlchemyError:
             # DB 조회 실패 시 서버 내부 오류로 간주해 연결을 거부한다.
             await websocket.close(code=status.WS_1011_INTERNAL_ERROR)
@@ -797,12 +854,20 @@ async def chat_websocket(websocket: WebSocket, room_id: str, role: str = "finder
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
             return
 
-        # 2-1) [Week1/GAP B] 보호자는 세션 쿠키의 guardian_id가 이 방의 아이
-        # 소유자와 일치해야만 입장 가능(다른 보호자의 방에 room_id로 무단 접근 방지).
+        # 2-1) [Week1/GAP B, Week3] 보호자는 세션 쿠키의 guardian_id가 이 방의
+        # 아이에 연결돼 있어야만 입장 가능(다른 보호자의 방에 room_id로 무단 접근 방지).
         if role == "guardian":
             session_token = websocket.cookies.get(auth.SESSION_COOKIE_NAME)
             session_guardian_id = auth.get_session_guardian_id(session_token)
-            if session_guardian_id is None or session_guardian_id != child_guardian_id:
+            if session_guardian_id is None:
+                await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+                return
+            try:
+                linked = _is_guardian_linked_to_child(db, session_guardian_id, room.child_id)
+            except SQLAlchemyError:
+                await websocket.close(code=status.WS_1011_INTERNAL_ERROR)
+                return
+            if not linked:
                 await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
                 return
 
@@ -1065,8 +1130,16 @@ async def _receive_loop(
             asyncio.create_task(_run_moderation(message.id, room_id, role, content))
 
 
+_MODERATION_CONTEXT_LIMIT = 5
+
+
 async def _run_moderation(message_id: str, room_id: str, sender_role: str, content: str) -> None:
     """[Week2] 백그라운드에서 메시지를 모더레이션 검사하고, 위반 시 발신자를 제한한다.
+
+    [Week3] 이번 메시지 한 줄만이 아니라, 같은 방의 최근 대화 몇 개를 함께
+    LLM에 넘겨 맥락을 보고 판단하게 한다 — 개별 메시지는 평범해 보여도
+    대화 흐름 전체를 보면 드러나는 패턴(서서히 개인정보를 캐내는 시도 등)을
+    잡기 위함이다.
 
     asyncio.create_task로 fire-and-forget 실행되므로, 이 함수 안에서 발생하는
     모든 예외를 반드시 여기서 잡아야 한다 — 그렇지 않으면 예외가 아무에게도
@@ -1078,25 +1151,45 @@ async def _run_moderation(message_id: str, room_id: str, sender_role: str, conte
     새 DB 세션을 직접 연다 — 호출부(_receive_loop)의 세션은 WebSocket 연결과
     생명주기가 같아서 백그라운드 태스크가 오래 걸리는 동안 이미 닫혔을 수 있다.
     """
-    try:
-        # openai 클라이언트(Upstage Solar 호환) 호출은 동기(blocking) API이므로,
-        # 이벤트 루프를 막지 않도록 별도 스레드에서 실행한다(asyncio.to_thread).
-        violates = await asyncio.to_thread(moderation.check_message, content)
-    except Exception as error:  # noqa: BLE001
-        # moderation.check_message는 자체적으로 fail-open이라 예외를 던지지
-        # 않는 게 정상이지만, asyncio.to_thread 자체의 스케줄링 실패 등
-        # 예견 못한 상황까지 대비해 최후의 방어선으로만 넓게 잡는다. 이 태스크는
-        # 완전히 백그라운드이고 채팅 흐름에 영향을 주면 안 되므로(PLAN fail-open
-        # 원칙), 여기서 삼키지 않으면 서버 로그에 미수집 예외로만 남고 아무도
-        # 처리할 수 없다.
-        print(f"[모더레이션] 백그라운드 판정 중 예상치 못한 오류(message_id={message_id}): {error}")
-        return
-
-    if not violates:
-        return
-
     db = SessionLocal()
     try:
+        try:
+            recent_messages = (
+                db.query(Message)
+                .filter(Message.room_id == room_id, Message.message_type == "text")
+                .order_by(Message.created_at.desc())
+                .limit(_MODERATION_CONTEXT_LIMIT + 1)  # 이번 메시지가 섞여 있을 수 있어 여유분.
+                .all()
+            )
+        except SQLAlchemyError as error:
+            # 맥락 조회는 부가 기능이므로 실패해도 판정 자체(맥락 없이)는 계속 진행한다.
+            print(f"[모더레이션] 최근 대화 조회 실패(message_id={message_id}): {error}")
+            recent_messages = []
+
+        # 이번에 판정할 메시지 자신은 맥락에서 빼고, 오래된 → 최신 순으로 정렬한다.
+        history = [
+            {"role": msg.sender_role, "content": msg.content}
+            for msg in reversed(recent_messages)
+            if msg.id != message_id
+        ][-_MODERATION_CONTEXT_LIMIT:]
+
+        try:
+            # openai 클라이언트(Upstage Solar 호환) 호출은 동기(blocking) API이므로,
+            # 이벤트 루프를 막지 않도록 별도 스레드에서 실행한다(asyncio.to_thread).
+            violates = await asyncio.to_thread(moderation.check_message, content, history)
+        except Exception as error:  # noqa: BLE001
+            # moderation.check_message는 자체적으로 fail-open이라 예외를 던지지
+            # 않는 게 정상이지만, asyncio.to_thread 자체의 스케줄링 실패 등
+            # 예견 못한 상황까지 대비해 최후의 방어선으로만 넓게 잡는다. 이 태스크는
+            # 완전히 백그라운드이고 채팅 흐름에 영향을 주면 안 되므로(PLAN fail-open
+            # 원칙), 여기서 삼키지 않으면 서버 로그에 미수집 예외로만 남고 아무도
+            # 처리할 수 없다.
+            print(f"[모더레이션] 백그라운드 판정 중 예상치 못한 오류(message_id={message_id}): {error}")
+            return
+
+        if not violates:
+            return
+
         try:
             message = db.query(Message).filter(Message.id == message_id).one_or_none()
             room = db.query(ChatRoom).filter(ChatRoom.id == room_id).one_or_none()
@@ -1176,6 +1269,9 @@ def _claim_qr_token(db: Session, serial: str, guardian_id: str, child_name: str)
     """[Week1] 시리얼 번호로 사전 발급된 QrToken을 조회해 새 Child에 연결(claim)한다.
 
     PLAN "QR 사전 인쇄 & 시리얼 매칭" 흐름의 3단계(등록/매칭)에 해당한다.
+    [Week3] Child 생성과 동시에 ChildGuardian(role="primary") 연결 레코드도 만든다 —
+    "누가 이 아이를 볼 수 있는가"는 이제 이 테이블로만 판정하므로, Child를 만들면서
+    이 레코드를 빠뜨리면 방금 등록한 사람조차 자기 아이 방에 못 들어가게 된다.
     호출부에서 commit/rollback을 책임진다(여기서는 add/flush만 수행).
 
     Raises:
@@ -1191,16 +1287,56 @@ def _claim_qr_token(db: Session, serial: str, guardian_id: str, child_name: str)
 
     child = Child(
         name=child_name,
-        guardian_id=guardian_id,
+        primary_guardian_id=guardian_id,
         status="normal",
         qr_token=qr_entry.qr_token,  # Child.qr_token에 QrToken.qr_token 값을 그대로 복사.
     )
     db.add(child)
     db.flush()  # child.id를 확보하기 위해 flush.
 
+    db.add(ChildGuardian(child_id=child.id, guardian_id=guardian_id, role="primary"))
+
     qr_entry.child_id = child.id
     qr_entry.claimed_at = datetime.now(timezone.utc)
     return child
+
+
+def _is_guardian_linked_to_child(db: Session, guardian_id: str, child_id: str) -> bool:
+    """[Week3] 이 보호자가 이 아이에 연결(최초 등록 또는 초대로 합류)돼 있는지 조회한다.
+
+    채팅 열람/실종 신고 토글/QR 다운로드 등 "볼 수 있는가" 판정은 전부 이 함수를
+    거친다. 예전의 child.guardian_id == guardian.id 단순 비교를 대체한다.
+
+    Raises:
+        SQLAlchemyError: 조회 중 DB 오류(호출부에서 처리).
+    """
+    link = (
+        db.query(ChildGuardian)
+        .filter(ChildGuardian.child_id == child_id, ChildGuardian.guardian_id == guardian_id)
+        .one_or_none()
+    )
+    return link is not None
+
+
+def _is_guardian_primary_for_child(db: Session, guardian_id: str, child_id: str) -> bool:
+    """[Week3] 이 보호자가 이 아이의 최초 등록자(role="primary")인지 조회한다.
+
+    아이 삭제, 초대 코드 발급처럼 민감한 조작은 이 함수가 True를 반환할 때만
+    허용한다 — 초대로 합류한 보호자(role="invited")는 여기서 False가 나온다.
+
+    Raises:
+        SQLAlchemyError: 조회 중 DB 오류(호출부에서 처리).
+    """
+    link = (
+        db.query(ChildGuardian)
+        .filter(
+            ChildGuardian.child_id == child_id,
+            ChildGuardian.guardian_id == guardian_id,
+            ChildGuardian.role == "primary",
+        )
+        .one_or_none()
+    )
+    return link is not None
 
 
 # ---------------------------------------------------------------------------
@@ -1216,7 +1352,12 @@ def register_page(request: Request, error: str | None = None) -> HTMLResponse:
 
 @app.post("/register")
 async def register_submit(request: Request, db: Session = Depends(get_db)):
-    """[Week1] 보호자 회원가입 처리: Guardian 신규 생성 + 최초 아이 등록(시리얼 claim).
+    """[Week1] 보호자 회원가입 처리: Guardian 신규 생성.
+
+    [Week3] QR(태그) 등록은 더 이상 회원가입과 한 번에 처리하지 않는다. 계정만
+    먼저 만들고, 로그인 후 대시보드의 "태그 추가"(POST /guardian/dashboard/children,
+    guardian_add_child)에서 시리얼을 claim하도록 분리했다 — 가입 자체는 QR 없이도
+    끝날 수 있어야 한다는 결정에 따른 변경.
 
     PLAN 변경사항 반영:
     - 전화번호가 이미 가입되어 있으면 기존 계정에 자동으로 붙이지 않고 명확히
@@ -1225,6 +1366,9 @@ async def register_submit(request: Request, db: Session = Depends(get_db)):
       보안 문제를 없애기 위한 의도적 변경이다. (계정 열거 여지는 PLAN이 감수하기로
       한 트레이드오프.)
     - PIN은 평문으로 저장하지 않고 auth.hash_pin으로 해싱해 저장한다.
+    - [Week3] 개인정보 수집·이용 동의(전화번호 수집, AI의 채팅 내용 분석 등)에
+      체크하지 않으면 가입 자체를 진행하지 않는다(서버에서도 재검증 — 체크박스는
+      프론트 UI일 뿐이라 클라이언트 조작으로 우회될 수 있으므로).
 
     Raises:
         HTTPException(500): DB 오류 시.
@@ -1233,11 +1377,13 @@ async def register_submit(request: Request, db: Session = Depends(get_db)):
     guardian_name = str(form.get("guardian_name", "")).strip()
     guardian_phone = str(form.get("guardian_phone", "")).strip()
     guardian_pin = str(form.get("guardian_pin", "")).strip()
-    child_name = str(form.get("child_name", "")).strip()
-    serial = str(form.get("serial", "")).strip()
+    privacy_consent = str(form.get("privacy_consent", "")).strip()
 
-    if not guardian_name or not guardian_phone or not child_name or not serial:
+    if not guardian_name or not guardian_phone:
         return RedirectResponse(url="/register?error=missing_fields", status_code=303)
+
+    if not privacy_consent:
+        return RedirectResponse(url="/register?error=consent_required", status_code=303)
 
     # [Week1] PIN 정책(6자리 이상 숫자) 검증. 형식이 틀리면 DB에 손대지 않고 즉시 거부.
     if not auth.validate_pin_format(guardian_pin):
@@ -1261,15 +1407,7 @@ async def register_submit(request: Request, db: Session = Depends(get_db)):
     )
     try:
         db.add(guardian)
-        db.flush()  # guardian.id 확보(아직 커밋 전).
-        _claim_qr_token(db, serial, guardian.id, child_name)
         db.commit()
-    except LookupError:
-        db.rollback()
-        return RedirectResponse(url="/register?error=invalid_serial", status_code=303)
-    except ValueError:
-        db.rollback()
-        return RedirectResponse(url="/register?error=serial_used", status_code=303)
     except IntegrityError as error:
         db.rollback()
         raise HTTPException(
@@ -1281,7 +1419,8 @@ async def register_submit(request: Request, db: Session = Depends(get_db)):
             status_code=500, detail=f"가입 처리 중 데이터베이스 오류가 발생했습니다: {error}"
         ) from error
 
-    # 가입 성공 - 곧바로 로그인 상태로 대시보드에 진입시킨다.
+    # 가입 성공 - 곧바로 로그인 상태로 대시보드에 진입시킨다. 태그(QR) 등록은
+    # 대시보드의 "태그 추가" 폼에서 진행한다.
     session_token = auth.create_session(guardian.id)
     response = RedirectResponse(url="/guardian/dashboard", status_code=303)
     _set_session_cookie(response, session_token)
@@ -1518,12 +1657,22 @@ async def reset_pin_submit(request: Request, db: Session = Depends(get_db)):
 
 
 @app.get("/guardian/dashboard", response_class=HTMLResponse)
-def guardian_dashboard(request: Request, error: str | None = None, db: Session = Depends(get_db)):
+def guardian_dashboard(
+    request: Request,
+    error: str | None = None,
+    invite_code: str | None = None,
+    join_error: str | None = None,
+    joined: str | None = None,
+    db: Session = Depends(get_db),
+):
     """[Week1] 보호자 대시보드: 로그인한 보호자의 아이 목록 + 진행 중인 채팅방.
 
     로그인하지 않았으면 /login으로 리다이렉트한다. 예전의 /guardian/{manage_token}
     방식과 달리 URL 자체에는 어떤 식별 정보도 담지 않는다(세션 쿠키가 유일한
     접근 수단).
+
+    [Week3] invite_code: 방금 발급된 초대 코드(guardian_create_invite가 리다이렉트로
+    전달). join_error/joined: 초대 코드 입력(guardian_join_by_invite) 결과 안내.
 
     Raises:
         HTTPException(500): DB 오류 시.
@@ -1533,9 +1682,13 @@ def guardian_dashboard(request: Request, error: str | None = None, db: Session =
         return RedirectResponse(url="/login", status_code=303)
 
     try:
+        # [Week3] "이 보호자가 소유한 아이"가 아니라 "이 보호자가 연결된 아이"를
+        # 조회한다 — 초대로 합류한 아이도 대시보드에 똑같이 보여야 하므로
+        # ChildGuardian을 조인한다.
         children = (
             db.query(Child)
-            .filter(Child.guardian_id == guardian.id)
+            .join(ChildGuardian, ChildGuardian.child_id == Child.id)
+            .filter(ChildGuardian.guardian_id == guardian.id)
             .order_by(Child.created_at)
             .all()
         )
@@ -1572,13 +1725,23 @@ def guardian_dashboard(request: Request, error: str | None = None, db: Session =
                     else child.qr_token[:12]
                 ),
                 "active_room_id": active_room.id if active_room else None,
+                # [Week3] 프론트가 "초대하기"/"삭제" 버튼을 최초 등록자에게만
+                # 보여줄 수 있도록, 이 보호자가 primary인지 함께 내려준다.
+                "is_primary": child.primary_guardian_id == guardian.id,
             }
         )
 
     return templates.TemplateResponse(
         request,
         "guardian_dashboard.html",
-        {"guardian_name": guardian.name, "children": children_display, "error": error},
+        {
+            "guardian_name": guardian.name,
+            "children": children_display,
+            "error": error,
+            "invite_code": invite_code,
+            "join_error": join_error,
+            "joined": joined,
+        },
     )
 
 
@@ -1625,12 +1788,15 @@ async def guardian_add_child(request: Request, db: Session = Depends(get_db)):
 def guardian_toggle_status(request: Request, child_id: str, db: Session = Depends(get_db)):
     """[Week1/GAP A] 아이의 실종 신고 상태(normal/missing)를 토글한다.
 
-    [Week1/GAP B] 소유권 재검증: child.guardian_id가 로그인한 보호자와 다르면
-    403 — 다른 보호자가 child_id를 추측해서 남의 아이 상태를 바꾸지 못하도록 막는다.
+    [Week1/GAP B, Week3] 연결 재검증: 이 아이에 연결된 보호자 목록에 로그인한
+    보호자가 없으면 403 — 다른 보호자가 child_id를 추측해서 남의 아이 상태를
+    바꾸지 못하도록 막는다. 실종 신고 토글은 최초 등록자뿐 아니라 초대로 합류한
+    보호자도 할 수 있다(가족 구성원 누구든 위급 상황에 신고를 켤 수 있어야
+    하므로 — 아이 삭제 같은 민감 작업과는 다르게 취급한다).
 
     Raises:
         HTTPException(404): 존재하지 않는 아이일 때.
-        HTTPException(403): 본인이 등록한 아이가 아닐 때.
+        HTTPException(403): 이 아이에 연결되지 않은 보호자일 때.
         HTTPException(500): DB 오류 시.
     """
     guardian = get_current_guardian(request, db)
@@ -1646,8 +1812,15 @@ def guardian_toggle_status(request: Request, child_id: str, db: Session = Depend
 
     if child is None:
         raise HTTPException(status_code=404, detail="존재하지 않는 아이입니다.")
-    if child.guardian_id != guardian.id:
-        raise HTTPException(status_code=403, detail="본인이 등록한 아이만 관리할 수 있습니다.")
+
+    try:
+        linked = _is_guardian_linked_to_child(db, guardian.id, child.id)
+    except SQLAlchemyError as error:
+        raise HTTPException(
+            status_code=500, detail=f"권한 확인 중 데이터베이스 오류가 발생했습니다: {error}"
+        ) from error
+    if not linked:
+        raise HTTPException(status_code=403, detail="본인이 연결된 아이만 관리할 수 있습니다.")
 
     child.status = "normal" if child.status == "missing" else "missing"
     try:
@@ -1665,9 +1838,14 @@ def guardian_toggle_status(request: Request, child_id: str, db: Session = Depend
 def guardian_delete_child(request: Request, child_id: str, db: Session = Depends(get_db)):
     """[Week1/GAP B] 아이 삭제. 소유권 재검증 후 QrToken을 unclaim하고 Child를 삭제한다.
 
+    [Week3] 삭제는 민감한 조작이라 이 아이의 최초 등록자(role="primary")만 할 수
+    있다 — 초대로 합류한 보호자(role="invited")가 실수나 다툼으로 아이 데이터를
+    통째로 지워버리는 사고를 막기 위한 의도적 제약이다(다른 조작인 실종 신고
+    토글/채팅 열람은 연결된 모든 보호자가 할 수 있는 것과 대비된다).
+
     Raises:
         HTTPException(404): 존재하지 않는 아이일 때.
-        HTTPException(403): 본인이 등록한 아이가 아닐 때.
+        HTTPException(403): 최초 등록자가 아닐 때.
         HTTPException(500): DB 오류 시.
     """
     guardian = get_current_guardian(request, db)
@@ -1683,8 +1861,15 @@ def guardian_delete_child(request: Request, child_id: str, db: Session = Depends
 
     if child is None:
         raise HTTPException(status_code=404, detail="존재하지 않는 아이입니다.")
-    if child.guardian_id != guardian.id:
-        raise HTTPException(status_code=403, detail="본인이 등록한 아이만 관리할 수 있습니다.")
+
+    try:
+        is_primary = _is_guardian_primary_for_child(db, guardian.id, child.id)
+    except SQLAlchemyError as error:
+        raise HTTPException(
+            status_code=500, detail=f"권한 확인 중 데이터베이스 오류가 발생했습니다: {error}"
+        ) from error
+    if not is_primary:
+        raise HTTPException(status_code=403, detail="이 아이를 최초 등록한 보호자만 삭제할 수 있습니다.")
 
     try:
         if child.qr_pool_entry is not None:
@@ -1702,3 +1887,190 @@ def guardian_delete_child(request: Request, child_id: str, db: Session = Depends
         ) from error
 
     return RedirectResponse(url="/guardian/dashboard", status_code=303)
+
+
+# ---------------------------------------------------------------------------
+# [Week3] 가족 초대: 아이 한 명에 보호자를 추가로 연결한다.
+#
+# QrToken의 "짧은 코드로 매칭" 패턴을 그대로 재사용한다(팀이 이미 익숙한 구조).
+# 발급은 최초 등록자만 할 수 있고, 수락은 로그인한 아무 보호자나 코드만 알면
+# 할 수 있다(코드 자체가 문자/카톡으로 직접 전달되는 비밀값이라, 그 값을 아는
+# 것 자체가 "초대받았다"는 증거로 취급된다 — QrToken의 시리얼과 같은 신뢰 모델).
+# ---------------------------------------------------------------------------
+
+
+@app.post("/guardian/dashboard/children/{child_id}/invite")
+def guardian_create_invite(request: Request, child_id: str, db: Session = Depends(get_db)):
+    """[Week3] 이 아이에 보호자를 추가로 연결하기 위한 1회용 초대 코드를 발급한다.
+
+    최초 등록자(role="primary")만 발급할 수 있다 — 초대로 합류한 보호자가 또
+    다른 사람을 무한정 끌어들이는 것을 막기 위한 제약이다(민감 작업 정책은
+    guardian_delete_child와 동일하게 primary 전용).
+
+    발급된 코드는 리다이렉트 쿼리 파라미터(?invite_code=...)로 대시보드에
+    전달한다 — 이 코드는 평문으로 다시 볼 수 없으므로(DB에는 원문 그대로
+    저장하지만 "재발급하면 이전 코드는 그대로 살아있다"는 걸 프론트가 알
+    필요는 없고, 그냥 이번에 발급된 값을 1회 보여주면 된다) 이 응답에서만
+    보여준다.
+
+    Raises:
+        HTTPException(404): 존재하지 않는 아이일 때.
+        HTTPException(403): 최초 등록자가 아닐 때.
+        HTTPException(500): DB 오류 시.
+    """
+    guardian = get_current_guardian(request, db)
+    if guardian is None:
+        return RedirectResponse(url="/login", status_code=303)
+
+    try:
+        child = db.query(Child).filter(Child.id == child_id).one_or_none()
+    except SQLAlchemyError as error:
+        raise HTTPException(
+            status_code=500, detail=f"아이 조회 중 데이터베이스 오류가 발생했습니다: {error}"
+        ) from error
+
+    if child is None:
+        raise HTTPException(status_code=404, detail="존재하지 않는 아이입니다.")
+
+    try:
+        is_primary = _is_guardian_primary_for_child(db, guardian.id, child.id)
+    except SQLAlchemyError as error:
+        raise HTTPException(
+            status_code=500, detail=f"권한 확인 중 데이터베이스 오류가 발생했습니다: {error}"
+        ) from error
+    if not is_primary:
+        raise HTTPException(
+            status_code=403, detail="이 아이를 최초 등록한 보호자만 초대 코드를 발급할 수 있습니다."
+        )
+
+    # [Week3] QrToken의 유일 시리얼 생성과 동일한 재시도 패턴 — 충돌은 극히
+    # 드물지만(8자리, 32문자 알파벳), DB 레벨 unique 제약과 함께 애플리케이션
+    # 레벨에서도 몇 번 재시도한다.
+    invite = None
+    last_integrity_error: IntegrityError | None = None
+    for _ in range(5):
+        code = auth.generate_invite_code()
+        invite = InviteCode(
+            code=code,
+            child_id=child.id,
+            created_by_guardian_id=guardian.id,
+            expires_at=auth.compute_invite_code_expiry(),
+        )
+        try:
+            db.add(invite)
+            db.commit()
+            break
+        except IntegrityError as error:
+            db.rollback()
+            last_integrity_error = error
+            invite = None
+            continue
+        except SQLAlchemyError as error:
+            db.rollback()
+            raise HTTPException(
+                status_code=500, detail=f"초대 코드 발급 중 데이터베이스 오류가 발생했습니다: {error}"
+            ) from error
+
+    if invite is None:
+        raise HTTPException(
+            status_code=500,
+            detail=f"초대 코드 생성 중 충돌이 반복되었습니다. 다시 시도해 주세요: {last_integrity_error}",
+        )
+
+    return RedirectResponse(
+        url=f"/guardian/dashboard?invite_code={invite.code}", status_code=303
+    )
+
+
+@app.post("/guardian/dashboard/join")
+async def guardian_join_by_invite(request: Request, db: Session = Depends(get_db)):
+    """[Week3] 로그인한 보호자가 초대 코드를 입력해 아이에 연결(합류)한다.
+
+    코드는 검증 시도 자체로 소모되지 않는다(만료 전까지는 재시도 가능) — OTP와
+    달리 이 코드는 "그 자리에서 한 번 틀렸다고 폐기"할 이유가 없다(오타 가능성이
+    높은 8자리 수동 입력값이므로). 다만 실제로 사용(합류 성공)하면 즉시
+    used_at/used_by_guardian_id가 채워져 그 순간부터 재사용이 막힌다.
+
+    [Week3 동시성 수정] "코드 조회 -> 파이썬에서 유효성 확인 -> used_at 대입 ->
+    커밋" 순서로 짜면, 서버가 여러 프로세스/인스턴스로 돌아갈 때(이중화 배포)
+    서로 다른 두 보호자의 요청이 동시에 같은 코드를 "아직 안 쓴 코드"로 읽어버려
+    둘 다 합류에 성공하는 경쟁 상태가 생긴다(1회용이라는 전제가 깨짐). 단일
+    프로세스 + await 없는 동기 코드에서는 이벤트 루프가 우연히 직렬화해줘서
+    드러나지 않지만, 실제 이중화 배포에서는 재현 가능하다. 그래서 실제 "코드를
+    선점하는" 연산만은 `UPDATE ... WHERE used_at IS NULL` 조건부 갱신으로 처리한다
+    — 이 한 문장이 원자적이라, 두 요청이 동시에 와도 DB가 행 잠금으로 순서를
+    정해주고 오직 하나만 rowcount=1을 받는다.
+
+    Raises:
+        HTTPException(500): DB 오류 시.
+    """
+    guardian = get_current_guardian(request, db)
+    if guardian is None:
+        return RedirectResponse(url="/login", status_code=303)
+
+    form = await request.form()
+    code = str(form.get("code", "")).strip().upper()
+
+    if not code:
+        return RedirectResponse(url="/guardian/dashboard?join_error=missing_code", status_code=303)
+
+    try:
+        invite = db.query(InviteCode).filter(InviteCode.code == code).one_or_none()
+    except SQLAlchemyError as error:
+        raise HTTPException(
+            status_code=500, detail=f"초대 코드 조회 중 데이터베이스 오류가 발생했습니다: {error}"
+        ) from error
+
+    if invite is None:
+        return RedirectResponse(url="/guardian/dashboard?join_error=invalid_code", status_code=303)
+
+    if not auth.is_invite_code_valid(invite.expires_at, invite.used_at):
+        return RedirectResponse(url="/guardian/dashboard?join_error=expired_code", status_code=303)
+
+    try:
+        already_linked = _is_guardian_linked_to_child(db, guardian.id, invite.child_id)
+    except SQLAlchemyError as error:
+        raise HTTPException(
+            status_code=500, detail=f"권한 확인 중 데이터베이스 오류가 발생했습니다: {error}"
+        ) from error
+    if already_linked:
+        # 이미 연결된 보호자(최초 등록자 본인이 자기 코드를 입력한 경우 등).
+        # 코드를 소모시키지 않는다 — 다른 진짜 초대 대상자가 여전히 쓸 수 있어야 하므로.
+        return RedirectResponse(url="/guardian/dashboard?join_error=already_linked", status_code=303)
+
+    # [Week3 동시성 수정] 코드를 "선점"하는 순간만 원자적 조건부 UPDATE로 처리한다.
+    # WHERE에 used_at IS NULL을 걸어, 동시에 도착한 다른 요청이 이미 먼저
+    # 선점했다면 이 UPDATE는 0행에 매치되어 아무것도 바꾸지 않는다.
+    try:
+        result = db.execute(
+            update(InviteCode)
+            .where(InviteCode.id == invite.id, InviteCode.used_at.is_(None))
+            .values(used_at=datetime.now(timezone.utc), used_by_guardian_id=guardian.id)
+        )
+    except SQLAlchemyError as error:
+        db.rollback()
+        raise HTTPException(
+            status_code=500, detail=f"초대 코드 사용 중 데이터베이스 오류가 발생했습니다: {error}"
+        ) from error
+
+    if result.rowcount == 0:
+        # 이 시점 사이에 다른 요청이 먼저 코드를 선점했다(동시 요청 경쟁 상황).
+        db.rollback()
+        return RedirectResponse(url="/guardian/dashboard?join_error=expired_code", status_code=303)
+
+    try:
+        db.add(ChildGuardian(child_id=invite.child_id, guardian_id=guardian.id, role="invited"))
+        db.commit()
+    except IntegrityError as error:
+        # UniqueConstraint(child_id, guardian_id) 충돌 — already_linked 검사와
+        # 동시 요청(경쟁 상황)으로 인한 극히 드문 경우. 롤백하면 방금 선점한
+        # UPDATE도 함께 취소되어 코드가 다시 미사용 상태로 남는다(정상 동작).
+        db.rollback()
+        return RedirectResponse(url="/guardian/dashboard?join_error=already_linked", status_code=303)
+    except SQLAlchemyError as error:
+        db.rollback()
+        raise HTTPException(
+            status_code=500, detail=f"초대 코드 사용 중 데이터베이스 오류가 발생했습니다: {error}"
+        ) from error
+
+    return RedirectResponse(url="/guardian/dashboard?joined=success", status_code=303)

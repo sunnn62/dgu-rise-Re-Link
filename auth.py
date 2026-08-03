@@ -376,3 +376,51 @@ def verify_otp(phone: str, code: str) -> bool:
         return False  # 만료된 OTP. 이미 pop했으므로 재사용 불가.
 
     return hmac.compare_digest(entry["code"], code)
+
+
+# ---------------------------------------------------------------------------
+# [Week3] 가족 초대 코드 (아이 1명에 보호자 여러 명을 연결하기 위한 1회용 코드)
+# ---------------------------------------------------------------------------
+#
+# QrToken의 "짧은 코드로 매칭"(serial) 패턴을 그대로 재사용한다. 다른 점은:
+# - QrToken은 DB 테이블(영구 저장, 배치로 미리 발급)이지만, 초대 코드는 즉석에서
+#   발급하고 짧게 쓰고 버리는 값이라 DB 컬럼 형식(코드 문자열 생성 규칙)만 이
+#   모듈에서 담당하고, 실제 저장/조회/만료·소모 처리는 models.InviteCode 테이블에서
+#   한다(main.py가 오케스트레이션). 이 함수는 "코드 문자열을 어떻게 생성하는가"만
+#   책임진다 — DB 접근이 없으므로 예외를 던지지 않는다.
+# - 유효기간은 24시간(OTP의 5분보다 훨씬 길다) — 문자/카톡으로 전달하고 상대방이
+#   회원가입까지 마칠 시간을 감안해야 하기 때문(OTP는 그 자리에서 바로 입력하는
+#   값이라 짧아도 된다).
+
+INVITE_CODE_LENGTH = 8
+INVITE_CODE_EXPIRE_HOURS = 24
+
+# QrToken._SERIAL_ALPHABET과 동일하게, 헷갈리는 문자(0/O, 1/I/L)를 제외한다.
+# 문자/카톡으로 손으로 전달하고 손으로 입력하는 값이므로 QR 시리얼과 같은
+# 이유로 같은 문자셋을 쓴다(generate_qr_batch.py 참고).
+_INVITE_CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
+
+
+def generate_invite_code() -> str:
+    """초대 코드 문자열을 새로 생성한다(DB 저장/중복 검사는 호출부 책임).
+
+    Returns:
+        길이 INVITE_CODE_LENGTH의 랜덤 코드(예: "AB3D9KMP").
+    """
+    return "".join(secrets.choice(_INVITE_CODE_ALPHABET) for _ in range(INVITE_CODE_LENGTH))
+
+
+def compute_invite_code_expiry() -> datetime:
+    """지금부터 INVITE_CODE_EXPIRE_HOURS 후의 만료 시각을 계산한다."""
+    return datetime.now(timezone.utc) + timedelta(hours=INVITE_CODE_EXPIRE_HOURS)
+
+
+def is_invite_code_valid(expires_at: datetime, used_at: datetime | None) -> bool:
+    """초대 코드가 아직 쓸 수 있는 상태인지 판정한다(만료 전이고 미사용).
+
+    DB에서 읽은 naive datetime을 그대로 넘겨도 되도록 aware 보정을 여기서
+    처리한다(SQLite가 tzinfo를 안 저장하는 문제, is_locked와 같은 이유).
+    """
+    if used_at is not None:
+        return False
+    return _as_aware_utc(expires_at) > datetime.now(timezone.utc)

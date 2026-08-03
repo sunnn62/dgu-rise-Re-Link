@@ -108,6 +108,12 @@
   // 발견자에게 재시도를 안내한다(PLAN GAP B "위치 오차 미표시" 개선 항목).
   const ACCURACY_WARN_THRESHOLD_METERS = 100;
 
+  // [Week3] GPS 첫 신호는 콜드스타트라 순간적으로 튀는(부정확한) 경우가 많다.
+  // watchPosition으로 이 시간(ms) 동안 여러 번 받아 그중 가장 정확한 값을 쓴다.
+  const GPS_SAMPLE_DURATION_MS = 5000;
+  // 이 정확도(미터) 이하가 나오면 굳이 더 기다리지 않고 즉시 확정한다.
+  const GPS_GOOD_ENOUGH_ACCURACY_METERS = 30;
+
   // 위치 메시지 말풍선. 지도 링크(구글 지도)를 새 탭으로 열 수 있게 렌더링한다.
   // [Week2] 오차 반경(accuracy)도 함께 표시해, 보호자가 이 위치를 얼마나
   // 믿어야 하는지 판단할 수 있게 한다.
@@ -346,36 +352,77 @@
     shareLocationBtn.disabled = true;
     shareLocationBtn.textContent = "위치 확인 중…";
 
-    navigator.geolocation.getCurrentPosition(
-      function (position) {
-        // [Week2] 오차 반경(accuracy, 미터)도 함께 전송한다. 서버가 저장하고
-        // 브로드캐스트하는 값이며, 화면 표시는 renderLocation이 담당한다.
-        ws.send(
-          JSON.stringify({
-            type: "location",
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-            accuracy: position.coords.accuracy,
-          })
-        );
+    // [Week3] GPS 콜드스타트 튐 방지: 한 번(getCurrentPosition)만 받지 않고
+    // watchPosition으로 짧게 여러 번 받아 그중 오차(accuracy)가 가장 작은
+    // 값을 채택한다. 충분히 정확한 값(GPS_GOOD_ENOUGH_ACCURACY_METERS 이하)이
+    // 나오면 그 즉시 확정해 불필요하게 오래 기다리지 않는다.
+    let bestPosition = null;
+    let watchId = null;
+    let finished = false;
+
+    function finishLocationShare() {
+      if (finished) return;
+      finished = true;
+      if (watchId !== null) {
+        navigator.geolocation.clearWatch(watchId);
+        watchId = null;
+      }
+
+      if (!bestPosition) {
+        renderSystem("위치를 가져오지 못했습니다. 다시 시도해주세요.");
         shareLocationBtn.disabled = false;
         shareLocationBtn.textContent = "위치 공유하고 채팅 시작";
-        unlockChatAfterLocation();
+        return;
+      }
 
-        // 오차가 크면(실내/도심 등) 채팅을 연 상태에서 재시도를 권장한다.
-        // 위치 자체는 이미 서버에 전달됐으므로 채팅을 막지는 않는다.
-        if (
-          typeof position.coords.accuracy === "number" &&
-          position.coords.accuracy > ACCURACY_WARN_THRESHOLD_METERS
-        ) {
-          renderSystem(
-            "위치 정확도가 낮습니다(오차 약 " +
-              Math.round(position.coords.accuracy) +
-              "m). 실외로 이동해서 위치를 다시 공유해보세요."
-          );
+      // [Week2] 오차 반경(accuracy, 미터)도 함께 전송한다. 서버가 저장하고
+      // 브로드캐스트하는 값이며, 화면 표시는 renderLocation이 담당한다.
+      ws.send(
+        JSON.stringify({
+          type: "location",
+          latitude: bestPosition.coords.latitude,
+          longitude: bestPosition.coords.longitude,
+          accuracy: bestPosition.coords.accuracy,
+        })
+      );
+      shareLocationBtn.disabled = false;
+      shareLocationBtn.textContent = "위치 공유하고 채팅 시작";
+      unlockChatAfterLocation();
+
+      // 오차가 크면(실내/도심 등) 채팅을 연 상태에서 재시도를 권장한다.
+      // 위치 자체는 이미 서버에 전달됐으므로 채팅을 막지는 않는다.
+      if (
+        typeof bestPosition.coords.accuracy === "number" &&
+        bestPosition.coords.accuracy > ACCURACY_WARN_THRESHOLD_METERS
+      ) {
+        renderSystem(
+          "위치 정확도가 낮습니다(오차 약 " +
+            Math.round(bestPosition.coords.accuracy) +
+            "m). 실외로 이동해서 위치를 다시 공유해보세요."
+        );
+      }
+    }
+
+    watchId = navigator.geolocation.watchPosition(
+      function (position) {
+        if (!bestPosition || position.coords.accuracy < bestPosition.coords.accuracy) {
+          bestPosition = position;
+        }
+        if (position.coords.accuracy <= GPS_GOOD_ENOUGH_ACCURACY_METERS) {
+          finishLocationShare();
         }
       },
       function (error) {
+        // 이미 하나라도 유효한 신호를 받았으면 그걸로 진행하고, 에러는 무시한다.
+        if (bestPosition) {
+          finishLocationShare();
+          return;
+        }
+        finished = true;
+        if (watchId !== null) {
+          navigator.geolocation.clearWatch(watchId);
+          watchId = null;
+        }
         let reason = "위치를 가져오지 못했습니다.";
         if (error.code === error.PERMISSION_DENIED) {
           reason = "위치 권한이 거부되었습니다. 브라우저 설정에서 허용해주세요.";
@@ -388,6 +435,8 @@
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
+
+    setTimeout(finishLocationShare, GPS_SAMPLE_DURATION_MS);
   }
 
   if (shareLocationBtn) {

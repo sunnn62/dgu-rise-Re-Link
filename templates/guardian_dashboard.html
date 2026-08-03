@@ -13,6 +13,11 @@
 
     {% if error %}<div class="alert destructive dashboard-error" role="alert"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4M12 17h.01"/></svg><div class="alert-title">태그를 추가하지 못했습니다</div><div class="alert-description">{% if error == 'missing_fields' %}이름과 일련번호를 입력하세요.{% elif error == 'invalid_serial' %}태그의 코드를 확인하세요. 예: RL-AB2C-9KMP.{% elif error == 'serial_used' %}이미 등록된 QR 태그입니다.{% endif %}</div></div>{% endif %}
 
+    <!-- [Week3] 가족 초대 결과 안내. 프론트 디자인 미구현 상태라 최소 alert만 표시(3주차 요청서 참고). -->
+    {% if invite_code %}<div class="alert dashboard-error" role="status"><div class="alert-title">초대 코드가 발급되었습니다</div><div class="alert-description">이 코드를 함께 관리할 가족에게 문자/카톡으로 전달하세요. 24시간 동안 유효하고 1회만 사용할 수 있습니다.<br/><strong class="mono">{{ invite_code }}</strong></div></div>{% endif %}
+    {% if joined == 'success' %}<div class="alert dashboard-error" role="status"><div class="alert-title">가족 구성원으로 합류했습니다</div><div class="alert-description">이제 이 아이의 채팅과 실종 신고를 함께 관리할 수 있습니다.</div></div>{% endif %}
+    {% if join_error %}<div class="alert destructive dashboard-error" role="alert"><div class="alert-title">초대 코드를 사용할 수 없습니다</div><div class="alert-description">{% if join_error == 'missing_code' %}코드를 입력하세요.{% elif join_error == 'invalid_code' %}존재하지 않는 코드입니다.{% elif join_error == 'expired_code' %}만료되었거나 이미 사용된 코드입니다.{% elif join_error == 'already_linked' %}이미 연결된 아이입니다.{% endif %}</div></div>{% endif %}
+
     {% if children %}
     <section class="children-list">
       {% for child in children %}
@@ -28,7 +33,10 @@
         </div>
 
         {% if child.status == 'missing' and child.active_room_id %}<a class="button active-chat" href="/chat/{{ child.active_room_id }}?role=guardian"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/><path d="M7 8h10M7 12h6"/></svg>{{ child.name }} 님을 발견했습니다 — 채팅 열기</a>{% endif %}
-        <div style="display:flex;align-items:center;gap:.5rem"><a class="button button-outline button-sm qr-action" href="/admin/children/{{ child.qr_token }}/qr" download><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h7v7h-7z"/></svg>QR 코드</a></div>
+        <div style="display:flex;align-items:center;gap:.5rem"><a class="button button-outline button-sm qr-action" href="/admin/children/{{ child.qr_token }}/qr" download><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h7v7h-7z"/></svg>QR 코드</a>
+          <!-- [Week3] 가족 초대: 최초 등록자만 발급할 수 있다(민감 작업). 프론트 미구현 상태의 최소 마크업(3주차 요청서 참고). -->
+          {% if child.is_primary %}<form class="inline-form" action="/guardian/dashboard/children/{{ child.id }}/invite" method="post"><button class="button button-outline button-sm" type="submit">가족 초대하기</button></form>{% endif %}
+        </div>
       </div></article>
       {% endfor %}
     </section>
@@ -39,6 +47,12 @@
     <section class="card add-card">
       <div class="add-card-header"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg><div><p class="card-title">태그 추가하기</p><p class="card-description">같은 계정에 대상자를 더 등록할 수 있습니다.</p></div></div>
       <div class="add-card-content"><form class="field-group" action="/guardian/dashboard/children" method="post"><div class="field"><label class="field-label" for="add-name"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>이름</label><input class="input" id="add-name" name="child_name" placeholder="누구를 등록하시나요?" required/></div><div class="field"><label class="field-label" for="add-serial"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h7v7h-7z"/></svg>태그 일련번호</label><input class="input mono" id="add-serial" name="serial" placeholder="RL-AB2C-9KMP" required/></div><button class="button button-lg w-full" type="submit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>태그 추가</button></form></div>
+    </section>
+
+    <!-- [Week3] 초대 코드로 다른 가족의 아이에 합류하기. 프론트 미구현 상태의 최소 마크업(3주차 요청서 참고). -->
+    <section class="card add-card">
+      <div class="add-card-header"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg><div><p class="card-title">초대 코드로 합류하기</p><p class="card-description">가족에게 받은 코드를 입력하면 그 아이를 함께 관리할 수 있습니다.</p></div></div>
+      <div class="add-card-content"><form class="field-group" action="/guardian/dashboard/join" method="post"><div class="field"><label class="field-label" for="join-code">초대 코드</label><input class="input mono" id="join-code" name="code" placeholder="예: AB3D9KMP" required/></div><button class="button button-lg w-full" type="submit">합류하기</button></form></div>
     </section>
 
     <p class="dashboard-note">태그의 <strong>실종 신고</strong>를 켜 두면 발견자의 스캔이 보호자에게 연결됩니다.</p>
