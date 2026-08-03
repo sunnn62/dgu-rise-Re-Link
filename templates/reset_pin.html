@@ -1,81 +1,42 @@
 <!DOCTYPE html>
 <html lang="ko">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>새 PIN 설정 — Re:Link</title>
-  <link rel="stylesheet" href="/static/style.css" />
-</head>
+<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title>새 PIN 설정 — Re:Link</title><link rel="stylesheet" href="/static/style.css?v=20260725-7"/></head>
 <body>
   <!-- [Week2] PIN 재설정 2단계: 전화번호 + 받은 인증번호(OTP) + 새 PIN 입력.
        OTP는 main.py(auth.verify_otp)에서 1회 시도만으로 소모된다(성공/실패 불문).
        실패하면 /login/forgot-pin에서 새 인증번호를 다시 받아야 한다. -->
-  <main class="landing">
-    <div class="landing-card">
-      <div class="landing-icon">🔑</div>
-      <h1>새 PIN 설정</h1>
-      <p class="landing-desc">받으신 인증번호와 새로 사용할 PIN을 입력해 주세요.</p>
+  <main class="screen-shell gap-6">
+    <header class="topbar">
+      <a class="button button-ghost button-icon" href="/login/forgot-pin" aria-label="이전으로"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg></a>
+      <a class="logo sm" href="/"><span class="logo-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="19" r="3"/><circle cx="18" cy="5" r="3"/><path d="M9 19c4 0 4-14 9-14"/></svg></span><span class="logo-word">Re:Link</span></a>
+      <span class="topbar-spacer" aria-hidden="true"></span>
+    </header>
 
-      {% if error == "missing_fields" %}
-      <p class="form-error" role="alert">모든 항목을 입력해 주세요.</p>
-      {% elif error == "invalid_pin" %}
-      <p class="form-error" role="alert">PIN은 숫자 6자리 이상으로 입력해 주세요.</p>
-      {% elif error == "invalid_otp" %}
-      <p class="form-error" role="alert">
-        인증번호가 올바르지 않거나 만료되었습니다.
-        <a href="/login/forgot-pin">인증번호를 다시 받아주세요</a>.
-      </p>
-      {% endif %}
+    <div class="intro"><h1 class="page-title">새 PIN 설정</h1><p class="page-copy">받으신 인증번호와 새로 사용할 PIN을 입력해 주세요.</p></div>
 
-      <form class="register-form" action="/login/reset-pin" method="post">
-        <label class="form-label" for="guardian_phone">전화번호</label>
-        <input
-          id="guardian_phone"
-          name="guardian_phone"
-          class="form-input"
-          type="tel"
-          placeholder="010-0000-0000"
-          value="{{ phone }}"
-          required
-          maxlength="13"
-        />
+    {% if error == "missing_fields" %}
+    <div class="alert destructive" role="alert"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4M12 17h.01"/></svg><div class="alert-title">입력값을 확인해 주세요</div><div class="alert-description">모든 항목을 입력해 주세요.</div></div>
+    {% elif error == "invalid_pin" %}
+    <div class="alert destructive" role="alert"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4M12 17h.01"/></svg><div class="alert-title">PIN 형식을 확인해 주세요</div><div class="alert-description">PIN은 숫자 6자리 이상으로 입력해 주세요.</div></div>
+    {% elif error == "invalid_otp" %}
+    <div class="alert destructive" role="alert"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4M12 17h.01"/></svg><div class="alert-title">인증번호가 올바르지 않습니다</div><div class="alert-description">인증번호가 올바르지 않거나 만료되었습니다. <a class="text-link" href="/login/forgot-pin">인증번호를 다시 받아주세요</a>.</div></div>
+    {% endif %}
 
-        <label class="form-label" for="otp_code">인증번호 (6자리)</label>
-        <input
-          id="otp_code"
-          name="otp_code"
-          class="form-input"
-          type="text"
-          inputmode="numeric"
-          placeholder="숫자 6자리"
-          maxlength="6"
-          required
-        />
+    <form class="form-stack" action="/login/reset-pin" method="post">
+      <div class="field-group">
+        <div class="field"><label class="field-label" for="guardian_phone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.93.36 1.85.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.96.34 1.88.58 2.81.7A2 2 0 0 1 22 16.92z"/></svg>전화번호</label><input class="input" id="guardian_phone" name="guardian_phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="010-1234-5678" value="{{ phone }}" maxlength="13" required/></div>
 
-        <label class="form-label" for="new_pin">새 PIN</label>
-        <input
-          id="new_pin"
-          name="new_pin"
-          class="form-input"
-          type="password"
-          inputmode="numeric"
-          placeholder="숫자 6자리 이상"
-          pattern="[0-9]{6,}"
-          minlength="6"
-          required
-          autocomplete="new-password"
-        />
+        <div class="field"><label class="field-label" for="otp_code"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>인증번호 (6자리)</label><input class="input mono" id="otp_code" name="otp_code" type="text" inputmode="numeric" placeholder="숫자 6자리" maxlength="6" required/></div>
 
-        <button type="submit" class="btn-primary register-btn">PIN 재설정</button>
-      </form>
+        <div class="field"><label class="field-label" for="new_pin"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6M15.5 7.5l3 3L22 7l-3-3"/></svg>새 PIN</label><div class="input-with-toggle"><input class="input" id="new_pin" name="new_pin" type="password" inputmode="numeric" placeholder="숫자 6자리 이상" pattern="[0-9]{6,}" minlength="6" required autocomplete="new-password"/><button type="button" class="pin-toggle-btn" data-target="new_pin" aria-label="PIN 표시"><svg class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg><svg class="icon-eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" hidden><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24M10.73 5.08A10.4 10.4 0 0 1 12 5c7 0 10 7 10 7a13.2 13.2 0 0 1-1.67 2.68M6.61 6.61A13.5 13.5 0 0 0 2 12s3 7 10 7a9.7 9.7 0 0 0 5.39-1.61M2 2l20 20"/></svg></button></div></div>
 
-      <p class="status-msg">
-        인증번호를 못 받으셨나요? <a href="/login/forgot-pin">다시 받기</a>
-      </p>
-      <p class="status-msg">
-        <a href="/login">로그인으로 돌아가기</a>
-      </p>
-    </div>
+        <button class="button button-lg w-full" type="submit">PIN 재설정</button>
+      </div>
+    </form>
+
+    <p style="margin:0;text-align:center;color:var(--muted-foreground);font-size:.875rem">인증번호를 못 받으셨나요? <a class="text-link" href="/login/forgot-pin">다시 받기</a></p>
+    <p class="auth-footer"><a class="text-link" href="/login">로그인으로 돌아가기</a></p>
   </main>
+  <script src="/static/pin_toggle.js" defer></script>
 </body>
 </html>

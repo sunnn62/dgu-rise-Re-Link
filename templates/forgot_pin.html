@@ -1,66 +1,41 @@
 <!DOCTYPE html>
 <html lang="ko">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PIN 재설정 — Re:Link</title>
-  <link rel="stylesheet" href="/static/style.css" />
-</head>
+<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title>PIN 재설정 — Re:Link</title><link rel="stylesheet" href="/static/style.css?v=20260725-7"/></head>
 <body>
   <!-- [Week2] PIN 재설정 1단계: 전화번호 입력 -> OTP 발송 요청.
        PLAN "OTP 발송 자체도 남용 방지 필요": 60초 쿨다운 + 1시간 5회 제한이
        main.py(auth.can_request_otp)에서 적용된다. 등록 안 된 번호도 동일한
        '발송되었습니다' 화면을 보여준다(계정 열거 방지). -->
-  <main class="landing">
-    <div class="landing-card">
-      <div class="landing-icon">📱</div>
-      <h1>PIN 재설정</h1>
-      <p class="landing-desc">가입 시 등록한 전화번호로 인증번호(OTP)를 보내드립니다.</p>
+  <main class="screen-shell gap-6">
+    <header class="topbar">
+      <a class="button button-ghost button-icon" href="/login" aria-label="로그인으로"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg></a>
+      <a class="logo sm" href="/"><span class="logo-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="19" r="3"/><circle cx="18" cy="5" r="3"/><path d="M9 19c4 0 4-14 9-14"/></svg></span><span class="logo-word">Re:Link</span></a>
+      <span class="topbar-spacer" aria-hidden="true"></span>
+    </header>
 
-      {% if error == "missing_phone" %}
-      <p class="form-error" role="alert">전화번호를 입력해 주세요.</p>
-      {% elif error == "cooldown" %}
-      <p class="form-error" role="alert">
-        인증번호는 60초마다 한 번만 재요청할 수 있습니다. 잠시 후 다시 시도해 주세요.
-      </p>
-      {% elif error == "too_many" %}
-      <p class="form-error" role="alert">
-        요청이 너무 많습니다. 1시간 후 다시 시도해 주세요.
-      </p>
-      {% endif %}
+    <div class="intro"><h1 class="page-title">PIN을 잊으셨나요</h1><p class="page-copy">가입 시 등록한 전화번호로 인증번호(OTP)를 보내드립니다.</p></div>
 
-      {% if sent %}
-      <p class="form-success" role="status">
-        인증번호를 발송했습니다. (등록된 번호가 아니면 도착하지 않을 수 있습니다.)<br />
-        인증번호는 5분간 유효합니다.
-      </p>
-      {% endif %}
+    {% if error == "missing_phone" %}
+    <div class="alert destructive" role="alert"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4M12 17h.01"/></svg><div class="alert-title">전화번호를 확인해 주세요</div><div class="alert-description">전화번호를 입력해 주세요.</div></div>
+    {% elif error == "cooldown" %}
+    <div class="alert destructive" role="alert"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg><div class="alert-title">잠시 후 다시 시도해 주세요</div><div class="alert-description">인증번호는 60초마다 한 번만 재요청할 수 있습니다.</div></div>
+    {% elif error == "too_many" %}
+    <div class="alert destructive" role="alert"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4M12 17h.01"/></svg><div class="alert-title">요청이 너무 많습니다</div><div class="alert-description">1시간 후 다시 시도해 주세요.</div></div>
+    {% endif %}
 
-      <form class="register-form" action="/login/forgot-pin" method="post">
-        <label class="form-label" for="guardian_phone">전화번호</label>
-        <input
-          id="guardian_phone"
-          name="guardian_phone"
-          class="form-input"
-          type="tel"
-          placeholder="010-0000-0000"
-          required
-          maxlength="13"
-        />
-        <button type="submit" class="btn-primary register-btn">인증번호 받기</button>
-      </form>
+    {% if sent %}
+    <div class="alert" role="status"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg><div class="alert-title">인증번호를 발송했습니다</div><div class="alert-description">등록된 번호가 아니면 도착하지 않을 수 있습니다. 인증번호는 5분간 유효합니다.</div></div>
+    {% endif %}
 
-      {% if sent %}
-      <!-- 발송 성공 직후, 다음 단계(재설정) 화면으로 바로 이동할 수 있게 안내한다. -->
-      <p class="status-msg">
-        인증번호를 받으셨나요? <a href="/login/reset-pin">PIN 재설정하러 가기</a>
-      </p>
-      {% endif %}
+    <form class="form-stack" action="/login/forgot-pin" method="post">
+      <div class="field-group">
+        <div class="field"><label class="field-label" for="guardian_phone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.93.36 1.85.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.96.34 1.88.58 2.81.7A2 2 0 0 1 22 16.92z"/></svg>전화번호</label><input class="input" id="guardian_phone" name="guardian_phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="010-1234-5678" maxlength="13" required/></div>
+        <button class="button button-lg w-full" type="submit">인증번호 받기</button>
+      </div>
+    </form>
 
-      <p class="status-msg">
-        <a href="/login">로그인으로 돌아가기</a>
-      </p>
-    </div>
+    {% if sent %}<p style="margin:0;text-align:center;color:var(--muted-foreground);font-size:.875rem">인증번호를 받으셨나요? <a class="text-link" href="/login/reset-pin">PIN 재설정하러 가기</a></p>{% endif %}
+    <p class="auth-footer"><a class="text-link" href="/login">로그인으로 돌아가기</a></p>
   </main>
 </body>
 </html>
