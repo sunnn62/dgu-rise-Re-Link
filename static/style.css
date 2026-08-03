@@ -352,6 +352,13 @@ svg { display: block; }
 .emergency-panel-text { margin: 0; color: var(--muted-foreground); font-size: .875rem; line-height: 1.625; }
 .emergency-tel-link { height: 2.75rem; width: 100%; display: inline-flex; align-items: center; justify-content: center; gap: .375rem; border-radius: .5rem; background: color-mix(in oklch, var(--destructive) 10%, transparent); color: var(--destructive); font-size: .875rem; font-weight: 500; text-decoration: none; }
 .btn-text-link { height: 2rem; border: 0; background: transparent; color: var(--foreground); font-size: .8rem; cursor: pointer; }
+.btn-resend-location {
+  display: flex; align-items: center; justify-content: center; gap: .375rem;
+  width: 100%; height: 2.25rem; border: 0; border-top: 1px solid var(--border);
+  background: var(--card); color: var(--primary); font-size: .8125rem; font-weight: 500; cursor: pointer;
+}
+.btn-resend-location:hover { background: var(--muted); }
+.btn-resend-location svg { flex: none; }
 .chat-input-bar { padding: .75rem; display: flex; align-items: flex-end; gap: .5rem; border-top: 1px solid var(--border); background: var(--card); }
 .input-group { flex: 1; min-height: 2.75rem; display: flex; align-items: flex-end; border: 1px solid var(--input); border-radius: 1rem; background: transparent; }
 .msg-input { flex: 1; min-height: 2.625rem; max-height: 8rem; padding: .65rem .25rem .65rem .875rem; resize: none; border: 0; outline: 0; background: transparent; color: var(--foreground); font-size: .875rem; line-height: 1.25rem; }
@@ -607,19 +614,40 @@ svg { display: block; }
   margin-top: .125rem;
 }
 
-/* [Week3] 장소 검색으로 위치 지정 — 최소 기능 스타일(디자인 미완성).
-   "3주차_프론트 추가구현 요청.md" 참고, 프론트에서 디자인 시스템에 맞게 다시 만들 것. */
-#locationSearchBox { display: flex; flex-direction: column; gap: .5rem; }
-#locationSearchResults { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .25rem; }
-#locationSearchResults li button {
-  width: 100%;
-  text-align: left;
-  padding: .5rem .625rem;
-  border: 1px solid var(--border);
-  border-radius: .5rem;
-  background: var(--background);
-  color: var(--foreground);
-  font-size: .8rem;
-  cursor: pointer;
+/* [Week3] 장소 검색으로 위치 지정 */
+.btn-location-search-toggle {
+  height: auto; padding: .375rem 0; display: inline-flex; align-items: center; gap: .375rem;
+  align-self: center; border: 0; background: transparent; color: var(--muted-foreground);
+  font-size: .8rem; cursor: pointer; text-align: center;
 }
-#locationSearchResults li button:hover { background: var(--card); }
+.btn-location-search-toggle svg { flex: none; }
+.btn-location-search-toggle:hover { color: var(--foreground); }
+.location-search-box { display: flex; flex-direction: column; gap: .625rem; padding: .75rem; border: 1px solid var(--border); border-radius: .75rem; background: color-mix(in oklch, var(--muted) 40%, transparent); }
+.location-search-input-row { display: flex; gap: .5rem; }
+.location-search-input-row .input { flex: 1; }
+.location-search-status {
+  display: flex; align-items: center; gap: .5rem; padding: .25rem .125rem;
+  color: var(--muted-foreground); font-size: .8125rem;
+}
+.location-search-spinner {
+  width: .875rem; height: .875rem; flex: none; border: 2px solid var(--border);
+  border-top-color: var(--primary); border-radius: 9999px; animation: location-search-spin .7s linear infinite;
+}
+@keyframes location-search-spin { to { transform: rotate(360deg); } }
+.location-search-results {
+  list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .375rem;
+  max-height: 12rem; overflow-y: auto;
+}
+.location-result-item {
+  width: 100%; display: flex; align-items: center; gap: .625rem; text-align: left;
+  padding: .5rem .625rem; border: 1px solid var(--border); border-radius: .625rem;
+  background: var(--card); color: var(--foreground); cursor: pointer; transition: background .15s;
+}
+.location-result-item:hover { background: color-mix(in oklch, var(--accent) 40%, transparent); }
+.location-result-icon {
+  width: 1.75rem; height: 1.75rem; flex: none; display: flex; align-items: center; justify-content: center;
+  border-radius: 9999px; background: var(--secondary); color: var(--secondary-foreground);
+}
+.location-result-copy { display: flex; flex-direction: column; min-width: 0; }
+.location-result-copy strong { font-size: .8125rem; font-weight: 500; }
+.location-result-copy span { color: var(--muted-foreground); font-size: .75rem; }

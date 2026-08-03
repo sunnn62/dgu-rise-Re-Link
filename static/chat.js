@@ -502,6 +502,7 @@
   const locationSearchInput = document.getElementById("locationSearchInput");
   const locationSearchBtn = document.getElementById("locationSearchBtn");
   const locationSearchResults = document.getElementById("locationSearchResults");
+  const locationSearchStatus = document.getElementById("locationSearchStatus");
 
   if (searchLocationToggleBtn && locationSearchBox) {
     searchLocationToggleBtn.addEventListener("click", function () {
@@ -512,34 +513,50 @@
     });
   }
 
+  function setSearchStatus(html) {
+    if (!locationSearchStatus) return;
+    if (!html) {
+      locationSearchStatus.hidden = true;
+      locationSearchStatus.innerHTML = "";
+      return;
+    }
+    locationSearchStatus.hidden = false;
+    locationSearchStatus.innerHTML = html;
+  }
+
   async function performPlaceSearch() {
     const query = (locationSearchInput.value || "").trim();
     if (!query) return;
 
     locationSearchBtn.disabled = true;
     locationSearchResults.innerHTML = "";
+    setSearchStatus('<span class="location-search-spinner" aria-hidden="true"></span>검색하는 중...');
 
     try {
       const response = await fetch(
         "/api/place-search?query=" + encodeURIComponent(query)
       );
       if (!response.ok) {
-        renderSystem("장소 검색에 실패했습니다. 다시 시도해주세요.");
+        setSearchStatus("장소 검색에 실패했습니다. 다시 시도해주세요.");
         return;
       }
       const data = await response.json();
       const results = data.results || [];
       if (results.length === 0) {
-        const emptyEl = document.createElement("li");
-        emptyEl.textContent = "검색 결과가 없습니다.";
-        locationSearchResults.appendChild(emptyEl);
+        setSearchStatus("검색 결과가 없습니다. 다른 이름으로 검색해보세요.");
         return;
       }
+      setSearchStatus(null);
       results.forEach(function (place) {
         const itemEl = document.createElement("li");
         const btnEl = document.createElement("button");
         btnEl.type = "button";
-        btnEl.textContent = place.name + " (" + place.address + ")";
+        btnEl.className = "location-result-item";
+        btnEl.innerHTML =
+          '<span class="location-result-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg></span>' +
+          '<span class="location-result-copy"><strong></strong><span></span></span>';
+        btnEl.querySelector("strong").textContent = place.name;
+        btnEl.querySelector(".location-result-copy span").textContent = place.address;
         btnEl.addEventListener("click", function () {
           sendSearchedLocation(place);
         });
@@ -547,7 +564,7 @@
         locationSearchResults.appendChild(itemEl);
       });
     } catch (error) {
-      renderSystem("장소 검색 중 오류가 발생했습니다.");
+      setSearchStatus("장소 검색 중 오류가 발생했습니다.");
     } finally {
       locationSearchBtn.disabled = false;
     }
@@ -571,6 +588,7 @@
     if (locationSearchResults) locationSearchResults.innerHTML = "";
     if (locationSearchInput) locationSearchInput.value = "";
     if (locationSearchBox) locationSearchBox.hidden = true;
+    setSearchStatus(null);
     unlockChatAfterLocation();
   }
 
