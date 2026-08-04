@@ -1816,6 +1816,57 @@ def guardian_dashboard(
     )
 
 
+@app.get("/guardian/dashboard/active-rooms")
+def guardian_dashboard_active_rooms(request: Request, db: Session = Depends(get_db)) -> dict:
+    """[버그 수정] 발견자가 신고를 시작해도 이미 열려 있는 대시보드에는 "채팅
+    열기" 버튼이 새로고침 전까지 안 보이는 문제(박선우 리포트) 대응용 폴링
+    엔드포인트. guardian_dashboard.html의 active_room_id 계산 로직과 동일하며,
+    dashboard_poll.js가 몇 초 간격으로 이 값만 가볍게 물어봐서 버튼을 갱신한다.
+
+    풀 페이지 렌더링(guardian_dashboard) 대신 별도 JSON 엔드포인트로 둔 이유:
+    폴링마다 전체 HTML을 다시 그리면 낭비이기도 하고, 서버 렌더 결과를 다시
+    파싱해서 필요한 부분만 갈아끼우는 것보다 필요한 데이터만 받아 클라이언트가
+    직접 DOM을 갱신하는 편이 더 간단하다.
+
+    Raises:
+        HTTPException(401): 로그인하지 않았을 때.
+        HTTPException(500): DB 오류 시.
+    """
+    guardian = get_current_guardian(request, db)
+    if guardian is None:
+        raise HTTPException(status_code=401, detail="로그인이 필요합니다.")
+
+    try:
+        children = (
+            db.query(Child)
+            .join(ChildGuardian, ChildGuardian.child_id == Child.id)
+            .filter(ChildGuardian.guardian_id == guardian.id)
+            .all()
+        )
+    except SQLAlchemyError as error:
+        raise HTTPException(
+            status_code=500, detail=f"아이 목록 조회 중 데이터베이스 오류가 발생했습니다: {error}"
+        ) from error
+
+    result = {}
+    for child in children:
+        if child.status != "missing":
+            continue
+        try:
+            active_room = (
+                db.query(ChatRoom)
+                .filter(ChatRoom.child_id == child.id, ChatRoom.status != "closed")
+                .order_by(ChatRoom.created_at.desc())
+                .first()
+            )
+        except SQLAlchemyError as error:
+            print(f"[경고] 진행 중인 채팅방 폴링 조회 실패(child_id={child.id}): {error}")
+            continue
+        result[child.id] = active_room.id if active_room else None
+
+    return {"active_rooms": result}
+
+
 @app.post("/guardian/dashboard/children")
 async def guardian_add_child(request: Request, db: Session = Depends(get_db)):
     """[Week1] 로그인한 보호자가 새 아이를 시리얼로 claim하여 추가한다.

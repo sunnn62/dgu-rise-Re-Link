@@ -49,7 +49,7 @@
     {% if children %}
     <section class="children-list">
       {% for child in children %}
-      <article class="card child-card {% if child.status == 'missing' %}reporting{% endif %}"><div class="card-content">
+      <article class="card child-card {% if child.status == 'missing' %}reporting{% endif %}" data-child-id="{{ child.id }}" data-child-name="{{ child.name }}" data-child-status="{{ child.status }}"><div class="card-content">
         <div class="child-top">
           <div class="child-identity"><span class="child-avatar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span><div><p class="child-name">{{ child.name }}</p><p class="child-serial">{{ child.serial }}</p></div></div>
           {% if child.is_primary %}<form class="inline-form" action="/guardian/dashboard/children/{{ child.id }}/delete" method="post"><button class="button button-ghost button-icon delete-button" type="submit" onclick="return confirm('이 태그를 삭제할까요?')" aria-label="{{ child.name }} 태그 삭제"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v5M14 11v5"/></svg></button></form>{% endif %}
@@ -88,5 +88,6 @@
 
     <p class="dashboard-note">태그의 <strong>실종 신고</strong>를 켜 두면 발견자의 스캔이 보호자에게 연결됩니다.</p>
   </main>
+  <script src="/static/dashboard_poll.js" defer></script>
 </body>
 </html>
