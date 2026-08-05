@@ -13,19 +13,49 @@
 
     {% if error %}<div class="alert destructive dashboard-error" role="alert"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4M12 17h.01"/></svg><div class="alert-title">태그를 추가하지 못했습니다</div><div class="alert-description">{% if error == 'missing_fields' %}이름과 일련번호를 입력하세요.{% elif error == 'invalid_serial' %}태그의 코드를 확인하세요. 예: RL-AB2C-9KMP.{% elif error == 'serial_used' %}이미 등록된 QR 태그입니다.{% endif %}</div></div>{% endif %}
 
-    <!-- [Week3] 가족 초대 결과 안내. 프론트 디자인 미구현 상태라 최소 alert만 표시(3주차 요청서 참고). -->
-    {% if invite_code %}<div class="alert dashboard-error" role="status"><div class="alert-title">초대 코드가 발급되었습니다</div><div class="alert-description">이 코드를 함께 관리할 가족에게 문자/카톡으로 전달하세요. 24시간 동안 유효하고 1회만 사용할 수 있습니다.<br/><strong class="mono">{{ invite_code }}</strong></div></div>{% endif %}
-    {% if joined == 'success' %}<div class="alert dashboard-error" role="status"><div class="alert-title">가족 구성원으로 합류했습니다</div><div class="alert-description">이제 이 아이의 채팅과 실종 신고를 함께 관리할 수 있습니다.</div></div>{% endif %}
-    {% if join_error %}<div class="alert destructive dashboard-error" role="alert"><div class="alert-title">초대 코드를 사용할 수 없습니다</div><div class="alert-description">{% if join_error == 'missing_code' %}코드를 입력하세요.{% elif join_error == 'invalid_code' %}존재하지 않는 코드입니다.{% elif join_error == 'expired_code' %}만료되었거나 이미 사용된 코드입니다.{% elif join_error == 'already_linked' %}이미 연결된 아이입니다.{% endif %}</div></div>{% endif %}
+    <!-- [Week3] 가족 초대 결과 안내 -->
+    {% if invite_code %}
+    <div class="card invite-code-card" role="status">
+      <div class="card-content invite-code-content">
+        <div class="invite-code-header"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg><p class="card-title">초대 코드가 발급되었습니다</p></div>
+        <div class="invite-code-row">
+          <span id="inviteCodeValue" class="invite-code-value">{{ invite_code }}</span>
+          <button type="button" class="button button-outline button-sm" id="inviteCodeCopyBtn" data-code="{{ invite_code }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span id="inviteCodeCopyLabel">복사</span></button>
+        </div>
+        <p class="invite-code-expiry">이 코드를 함께 관리할 가족에게 문자·카톡으로 직접 전달하세요. <strong>24시간 동안만 유효</strong>하고 <strong>1회 사용하면 즉시 만료</strong>됩니다.</p>
+      </div>
+    </div>
+    <script>
+      (function () {
+        const btn = document.getElementById("inviteCodeCopyBtn");
+        const label = document.getElementById("inviteCodeCopyLabel");
+        if (!btn) return;
+        btn.addEventListener("click", async function () {
+          try {
+            await navigator.clipboard.writeText(btn.dataset.code);
+            label.textContent = "복사됨";
+            setTimeout(function () { label.textContent = "복사"; }, 2000);
+          } catch (err) {
+            label.textContent = "복사 실패";
+          }
+        });
+      })();
+    </script>
+    {% endif %}
+
+    {% if joined == 'success' %}<div class="alert joined-success" role="status"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m22 4-10 10-3-3"/></svg><div class="alert-title">가족 구성원으로 합류했습니다</div><div class="alert-description">이제 이 아이의 채팅 열람·실종 신고를 함께 관리할 수 있습니다. 아이 삭제와 새 초대 코드 발급은 최초 등록자만 할 수 있어요.</div></div>{% endif %}
+    {% if join_error %}<div class="alert destructive dashboard-error" role="alert"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4M12 17h.01"/></svg><div class="alert-title">초대 코드를 사용할 수 없습니다</div><div class="alert-description">{% if join_error == 'missing_code' %}초대 코드를 입력해 주세요.{% elif join_error == 'invalid_code' %}존재하지 않는 코드입니다. 다시 확인해 주세요.{% elif join_error == 'expired_code' %}만료되었거나 이미 사용된 코드입니다. 가족에게 새 코드를 요청해 주세요.{% elif join_error == 'already_linked' %}이미 함께 관리하고 있는 대상자입니다.{% endif %}</div></div>{% endif %}
 
     {% if children %}
     <section class="children-list">
       {% for child in children %}
-      <article class="card child-card {% if child.status == 'missing' %}reporting{% endif %}"><div class="card-content">
+      <article class="card child-card {% if child.status == 'missing' %}reporting{% endif %}" data-child-id="{{ child.id }}" data-child-name="{{ child.name }}" data-child-status="{{ child.status }}"><div class="card-content">
         <div class="child-top">
           <div class="child-identity"><span class="child-avatar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span><div><p class="child-name">{{ child.name }}</p><p class="child-serial">{{ child.serial }}</p></div></div>
-          <form class="inline-form" action="/guardian/dashboard/children/{{ child.id }}/delete" method="post"><button class="button button-ghost button-icon delete-button" type="submit" onclick="return confirm('이 태그를 삭제할까요?')" aria-label="{{ child.name }} 태그 삭제"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v5M14 11v5"/></svg></button></form>
+          {% if child.is_primary %}<form class="inline-form" action="/guardian/dashboard/children/{{ child.id }}/delete" method="post"><button class="button button-ghost button-icon delete-button" type="submit" onclick="return confirm('이 태그를 삭제할까요?')" aria-label="{{ child.name }} 태그 삭제"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v5M14 11v5"/></svg></button></form>{% endif %}
         </div>
+
+        {% if not child.is_primary %}<p class="family-note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>다른 가족이 등록한 태그입니다. 삭제와 초대 코드 발급은 최초 등록자만 할 수 있어요.</p>{% endif %}
 
         <div class="report-row {% if child.status == 'missing' %}reporting{% endif %}">
           <div class="report-info"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.48M7.76 16.24a6 6 0 0 1 0-8.48M19.07 4.93a10 10 0 0 1 0 14.14M4.93 19.07a10 10 0 0 1 0-14.14"/></svg><div><p class="report-title">실종 신고</p><p class="report-description">{% if child.status == 'missing' %}QR을 스캔하면 보호자와의 채팅이 열립니다.{% else %}꺼져 있으면 QR을 스캔해도 아무 일도 일어나지 않습니다.{% endif %}</p></div></div>
@@ -33,9 +63,10 @@
         </div>
 
         {% if child.status == 'missing' and child.active_room_id %}<a class="button active-chat" href="/chat/{{ child.active_room_id }}?role=guardian"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/><path d="M7 8h10M7 12h6"/></svg>{{ child.name }} 님을 발견했습니다 — 채팅 열기</a>{% endif %}
-        <div style="display:flex;align-items:center;gap:.5rem"><a class="button button-outline button-sm qr-action" href="/admin/children/{{ child.qr_token }}/qr" download><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h7v7h-7z"/></svg>QR 코드</a>
-          <!-- [Week3] 가족 초대: 최초 등록자만 발급할 수 있다(민감 작업). 프론트 미구현 상태의 최소 마크업(3주차 요청서 참고). -->
-          {% if child.is_primary %}<form class="inline-form" action="/guardian/dashboard/children/{{ child.id }}/invite" method="post"><button class="button button-outline button-sm" type="submit">가족 초대하기</button></form>{% endif %}
+        <div style="display:flex;align-items:center;gap:.5rem">
+          <a class="button button-outline button-sm qr-action" href="/admin/children/{{ child.qr_token }}/qr" download><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h7v7h-7z"/></svg>QR 코드</a>
+          <!-- [Week3] 가족 초대: 최초 등록자만 발급할 수 있다(민감 작업). -->
+          {% if child.is_primary %}<form class="inline-form flex-1" action="/guardian/dashboard/children/{{ child.id }}/invite" method="post"><button class="button button-outline button-sm w-full" type="submit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg>가족 초대하기</button></form>{% endif %}
         </div>
       </div></article>
       {% endfor %}
@@ -57,5 +88,6 @@
 
     <p class="dashboard-note">태그의 <strong>실종 신고</strong>를 켜 두면 발견자의 스캔이 보호자에게 연결됩니다.</p>
   </main>
+  <script src="/static/dashboard_poll.js" defer></script>
 </body>
 </html>
