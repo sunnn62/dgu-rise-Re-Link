@@ -40,6 +40,7 @@ from __future__ import annotations
 
 import asyncio
 import hmac
+import json
 import os
 import secrets
 from datetime import datetime, timezone
@@ -69,6 +70,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
+from sqlalchemy import inspect as sa_inspect
 from sqlalchemy import update
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -531,6 +533,53 @@ def qr_batch_generate(
         content=zip_bytes,
         media_type="application/zip",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+def _serialize_row(obj) -> dict:
+    """[Week3] ORM 객체를 JSON 직렬화 가능한 dict로 변환한다(datetime -> ISO 문자열).
+
+    export_data/import_data.py가 짝을 이루는 일회성 DB 이전 도구다.
+    """
+    row = {}
+    for column in sa_inspect(obj).mapper.column_attrs:
+        value = getattr(obj, column.key)
+        if isinstance(value, datetime):
+            value = value.isoformat()
+        row[column.key] = value
+    return row
+
+
+@app.get("/admin/export-data")
+def export_data(request: Request, admin_key: str = "", db: Session = Depends(get_db)) -> Response:
+    """[Week3] 전체 데이터를 JSON으로 내보낸다 — SQLite -> Postgres 이전용 일회성 운영 도구.
+
+    다른 관리자 라우트와 달리 브라우저 주소창에서 바로 받을 수 있도록 관리자
+    키를 쿼리 파라미터로도 허용한다(URL에 비밀값이 남는 트레이드오프는 일회성
+    마이그레이션 작업이라 감수함 — 헤더로 보내는 X-Admin-Key도 계속 지원).
+    import_data.py로 그대로 읽어들여 새 DB에 복원한다.
+
+    Raises:
+        HTTPException(401): 관리자 키가 없거나 틀린 경우.
+    """
+    provided = admin_key or request.headers.get("X-Admin-Key", "")
+    if not ADMIN_API_KEY or not hmac.compare_digest(provided, ADMIN_API_KEY):
+        raise HTTPException(status_code=401, detail="관리자 키가 올바르지 않습니다.")
+
+    data = {
+        "guardians": [_serialize_row(r) for r in db.query(Guardian).all()],
+        "children": [_serialize_row(r) for r in db.query(Child).all()],
+        "child_guardians": [_serialize_row(r) for r in db.query(ChildGuardian).all()],
+        "qr_tokens": [_serialize_row(r) for r in db.query(QrToken).all()],
+        "invite_codes": [_serialize_row(r) for r in db.query(InviteCode).all()],
+        "chat_rooms": [_serialize_row(r) for r in db.query(ChatRoom).all()],
+        "messages": [_serialize_row(r) for r in db.query(Message).all()],
+    }
+    body = json.dumps(data, ensure_ascii=False, indent=2)
+    return Response(
+        content=body,
+        media_type="application/json",
+        headers={"Content-Disposition": 'attachment; filename="relink_export.json"'},
     )
 
 

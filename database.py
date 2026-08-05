@@ -19,6 +19,13 @@ from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 # 기본값으로 치환되도록 명시적으로 처리한다.
 DATABASE_URL = os.getenv("DATABASE_URL") or "sqlite:///./missing_child_chat.db"
 
+# [Week3] Render 등 여러 호스팅이 Postgres 접속 문자열을 "postgres://"로 주는데,
+# SQLAlchemy 2.0은 이 스킴을 더 이상 인식하지 못하고 "postgresql://"만 받는다
+# (psycopg2 드라이버 자체는 그대로). 사람이 매번 손으로 고쳐 붙여넣다 실수하는
+# 것을 막기 위해 여기서 자동으로 보정한다.
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = "postgresql://" + DATABASE_URL[len("postgres://") :]
+
 # SQLite는 기본적으로 단일 스레드 접근만 허용하므로, FastAPI가 여러 요청을
 # 동시에 처리할 때 필요한 옵션을 추가한다. PostgreSQL로 전환 시에는
 # connect_args를 비워도 된다.
