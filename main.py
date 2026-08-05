@@ -968,6 +968,9 @@ async def chat_websocket(websocket: WebSocket, room_id: str, role: str = "finder
 
         # 2-1) [Week1/GAP B, Week3] 보호자는 세션 쿠키의 guardian_id가 이 방의
         # 아이에 연결돼 있어야만 입장 가능(다른 보호자의 방에 room_id로 무단 접근 방지).
+        # [버그 수정] session_guardian_id를 if 블록 밖에서도 쓸 수 있게 미리 선언한다
+        # — _receive_loop에 넘겨서 모더레이션 발신 제한을 보호자 개인 단위로 걸기 위함.
+        session_guardian_id = None
         if role == "guardian":
             session_token = websocket.cookies.get(auth.SESSION_COOKIE_NAME)
             session_guardian_id = auth.get_session_guardian_id(session_token)
@@ -1061,7 +1064,7 @@ async def chat_websocket(websocket: WebSocket, room_id: str, role: str = "finder
 
         # 6) 수신 루프.
         await _receive_loop(
-            websocket, db, room, role, finder_token, finder_location_shared
+            websocket, db, room, role, finder_token, finder_location_shared, session_guardian_id
         )
 
     except WebSocketDisconnect:
@@ -1083,6 +1086,7 @@ async def _receive_loop(
     role: str,
     finder_token: str | None = None,
     finder_location_shared: bool = False,
+    guardian_id: str | None = None,
 ) -> None:
     """WebSocket 수신 루프: 메시지를 검증·저장·브로드캐스트한다.
 
@@ -1157,12 +1161,13 @@ async def _receive_loop(
                 )
                 continue
 
-            # [Week2] LLM 모더레이션으로 이전에 악용이 감지된 역할은 이후 text
+            # [Week2] LLM 모더레이션으로 이전에 악용이 감지된 발신자는 이후 text
             # 전송이 차단된다. 판정 자체는 비동기라 "이 메시지"가 아니라
-            # "그 다음부터"만 막을 수 있으므로, 여기서 role별 제한 플래그를 확인한다.
-            is_restricted = (
-                room.finder_restricted if role == "finder" else room.guardian_restricted
-            )
+            # "그 다음부터"만 막을 수 있으므로, 여기서 확인한다.
+            # [버그 수정] "역할 전체"가 아니라 "이 발신자 개인"만 걸린다 — 다중
+            # 발견자/다중 보호자 상황에서 무고한 사람까지 같이 막히지 않도록.
+            sender_identifier = finder_token if role == "finder" else guardian_id
+            is_restricted = auth.is_sender_restricted(role, sender_identifier, room_id)
             if is_restricted:
                 await websocket.send_json(
                     {
@@ -1245,19 +1250,27 @@ async def _receive_loop(
         # 백그라운드 태스크로 돌린다(fire-and-forget). 메시지는 이미 저장·전달
         # 됐으므로 이 태스크의 결과와 무관하게 채팅은 계속된다(PLAN 원칙 1).
         if msg_type == "text":
-            asyncio.create_task(_run_moderation(message.id, room_id, role, content))
+            sender_identifier = finder_token if role == "finder" else guardian_id
+            asyncio.create_task(
+                _run_moderation(message.id, room_id, role, content, sender_identifier)
+            )
 
 
 _MODERATION_CONTEXT_LIMIT = 5
 
 
-async def _run_moderation(message_id: str, room_id: str, sender_role: str, content: str) -> None:
+async def _run_moderation(
+    message_id: str, room_id: str, sender_role: str, content: str, sender_identifier: str | None
+) -> None:
     """[Week2] 백그라운드에서 메시지를 모더레이션 검사하고, 위반 시 발신자를 제한한다.
 
     [Week3] 이번 메시지 한 줄만이 아니라, 같은 방의 최근 대화 몇 개를 함께
     LLM에 넘겨 맥락을 보고 판단하게 한다 — 개별 메시지는 평범해 보여도
     대화 흐름 전체를 보면 드러나는 패턴(서서히 개인정보를 캐내는 시도 등)을
     잡기 위함이다.
+
+    [버그 수정] 위반 시 sender_role(역할 전체)이 아니라 sender_identifier(발견자
+    익명 쿠키 또는 guardian_id)로 특정해 제한한다 — auth.mark_sender_restricted 참고.
 
     asyncio.create_task로 fire-and-forget 실행되므로, 이 함수 안에서 발생하는
     모든 예외를 반드시 여기서 잡아야 한다 — 그렇지 않으면 예외가 아무에게도
@@ -1318,10 +1331,16 @@ async def _run_moderation(message_id: str, room_id: str, sender_role: str, conte
         if message is not None:
             message.flagged = True
         if room is not None:
+            # [Week3] 방 단위 집계 기록은 운영 참고용으로 계속 남긴다(예: "이 방에서
+            # 발견자 쪽에서 한 번이라도 위반이 있었는지"). 실제 차단 판정에는
+            # 더 이상 이 값을 쓰지 않는다 — 아래 mark_sender_restricted가 담당.
             if sender_role == "finder":
                 room.finder_restricted = True
             elif sender_role == "guardian":
                 room.guardian_restricted = True
+
+        # [버그 수정] 실제 차단은 발신자 개인 단위로 건다(역할 전체가 아니라).
+        auth.mark_sender_restricted(sender_role, sender_identifier, room_id)
 
         try:
             db.commit()

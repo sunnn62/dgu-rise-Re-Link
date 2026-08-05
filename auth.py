@@ -448,3 +448,32 @@ def is_invite_code_valid(expires_at: datetime, used_at: datetime | None) -> bool
     if used_at is not None:
         return False
     return _as_aware_utc(expires_at) > datetime.now(timezone.utc)
+
+
+# ---------------------------------------------------------------------------
+# [버그 수정] LLM 모더레이션 발신 제한 — 방 전체가 아니라 "발신자 개인" 단위
+# ---------------------------------------------------------------------------
+# 원래는 ChatRoom.finder_restricted/guardian_restricted(방 하나에 값 하나)로
+# 판정했다. 이 방식은 다중 발견자(방 재사용)·다중 보호자(가족 초대)가 가능해진
+# 뒤로 버그가 됐다 — 발견자2가 위반해도 이 값이 True가 되면, 죄 없는 발견자1까지
+# "발견자 역할이라는 이유"만으로 같이 차단당한다(보호자도 가족 초대로 여러 명이면
+# 마찬가지). 위치 잠금을 발견자 쿠키 단위로 재설계했던 것과 같은 이유로, 제한도
+# "방 + 역할 + 개인 식별자(발견자는 익명 쿠키, 보호자는 guardian_id)" 단위로 건다.
+#
+# 3주 데모 범위라 인메모리로 관리한다(다른 세션 저장소와 동일한 한계 — 서버
+# 재시작/다중 인스턴스 환경에서는 유지되지 않음. PLAN.md 알려진 한계 참고).
+_RESTRICTED_SENDERS: dict[str, set[str]] = {}  # room_id -> {"finder:<token>", "guardian:<id>", ...}
+
+
+def _sender_key(role: str, identifier: str | None) -> str:
+    return f"{role}:{identifier}"
+
+
+def mark_sender_restricted(role: str, identifier: str | None, room_id: str) -> None:
+    """이 방에서 이 발신자(역할+개인 식별자)의 이후 텍스트 전송을 제한 표시한다."""
+    _RESTRICTED_SENDERS.setdefault(room_id, set()).add(_sender_key(role, identifier))
+
+
+def is_sender_restricted(role: str, identifier: str | None, room_id: str) -> bool:
+    """이 방에서 이 발신자가 제한된 상태인지 확인한다."""
+    return _sender_key(role, identifier) in _RESTRICTED_SENDERS.get(room_id, set())
