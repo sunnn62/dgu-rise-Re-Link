@@ -110,7 +110,15 @@
 
   // [Week3] GPS 첫 신호는 콜드스타트라 순간적으로 튀는(부정확한) 경우가 많다.
   // watchPosition으로 이 시간(ms) 동안 여러 번 받아 그중 가장 정확한 값을 쓴다.
-  const GPS_SAMPLE_DURATION_MS = 5000;
+  // [버그 수정] 원래 5000(5초)이었는데, 실제 모바일에서는 권한 팝업 응답 시간 +
+  // 실제 GPS 신호 확보 시간을 합치면 5초를 넘기기 쉽다. 5초 안에 들어온 첫
+  // 신호는 위성 GPS가 아니라 기지국/WiFi 기반의 대략적인 위치(오차 수백~수천m)인
+  // 경우가 많아서, 시간이 부족하면 "실패" 또는 "오차 2000m대의 엉뚱한 위치"로
+  // 응답이 끝나버린다. 진짜 위성 GPS fix가 들어올 시간을 벌어주기 위해 늘린다.
+  // requestAndShareLocation()의 watchPosition timeout(10000ms)보다 넉넉하게
+  // 잡아야, 그 안쪽 timeout이 먼저 정확한 실패 사유(권한 거부/시간 초과)를
+  // 보여줄 기회를 얻는다.
+  const GPS_SAMPLE_DURATION_MS = 12000;
   // 이 정확도(미터) 이하가 나오면 굳이 더 기다리지 않고 즉시 확정한다.
   const GPS_GOOD_ENOUGH_ACCURACY_METERS = 30;
 
