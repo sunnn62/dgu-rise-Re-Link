@@ -336,23 +336,17 @@
     formEl.hidden = true;
   }
 
-  // [기능 변경] 최초 위치 공유는 GPS로만 강제하고, 재공유(위치 다시 공유하기)
-  // 부터는 장소 검색으로만 하도록 바꾼다 — 처음엔 실제 위치를 즉시 실측해
-  // 전달하는 게 우선이고, 이후 보정은 발견자가 직접 짚어주는 장소가 GPS
-  // 콜드스타트/오차보다 믿을 만하다는 판단. searchLocationToggleBtn(수동 토글)은
-  // 이제 두 상태 어디서도 쓰이지 않아 항상 숨긴다.
+  // [기능 변경] 최초 위치 공유는 GPS로만 강제한다 — 처음엔 "지금 여기"를 실측해
+  // 빠르게 알리는 게 우선이라 장소 검색으로 대체할 수 없게 한다. 재공유(위치
+  // 다시 공유하기)부터는 GPS와 장소 검색을 둘 다 열어둔다 — GPS를 재시도(실외로
+  // 이동해 오차 줄이기)하고 싶을 수도, 장소 이름으로 직접 짚어주고 싶을 수도
+  // 있어서 하나로 강제하면 안 됨. searchLocationToggleBtn(수동 토글)은 최초
+  // 화면에선 검색 자체를 안 보여줘야 하고 재공유 화면에선 검색창이 항상 열려
+  // 있어야 해서 어느 쪽에서도 쓰이지 않아 항상 숨긴다.
   function applyLocationGateMode() {
     if (searchLocationToggleBtn) searchLocationToggleBtn.hidden = true;
-    if (!locationAlreadyShared) {
-      if (shareLocationBtn) shareLocationBtn.hidden = false;
-      if (locationSearchBox) locationSearchBox.hidden = true;
-    } else {
-      if (shareLocationBtn) shareLocationBtn.hidden = true;
-      if (locationSearchBox) {
-        locationSearchBox.hidden = false;
-        if (locationSearchInput) locationSearchInput.focus();
-      }
-    }
+    if (shareLocationBtn) shareLocationBtn.hidden = false;
+    if (locationSearchBox) locationSearchBox.hidden = !locationAlreadyShared;
   }
 
   function showLocationGate() {
