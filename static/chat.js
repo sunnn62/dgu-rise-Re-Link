@@ -310,6 +310,15 @@
   // [Week3] 최초 위치 공유 후에도 다시 열어볼 수 있는 버튼. locationGate 안의
   // GPS 공유/장소 검색 버튼을 그대로 재사용한다(별도 패널을 새로 만들지 않음).
   const resendLocationBtn = document.getElementById("resendLocationBtn");
+  // [Week3] 장소 검색 UI 요소. applyLocationGateMode()에서 최초/재공유 여부에
+  // 따라 보이는 버튼을 바꿔야 해서, showLocationGate()보다 먼저 참조할 수 있게
+  // 위치-잠금 관련 상수들 바로 옆으로 끌어올려 선언한다.
+  const searchLocationToggleBtn = document.getElementById("searchLocationToggleBtn");
+  const locationSearchBox = document.getElementById("locationSearchBox");
+  const locationSearchInput = document.getElementById("locationSearchInput");
+  const locationSearchBtn = document.getElementById("locationSearchBtn");
+  const locationSearchResults = document.getElementById("locationSearchResults");
+  const locationSearchStatus = document.getElementById("locationSearchStatus");
 
   // [Week2] 위치 잠금은 "발견자 단위"다(다른 발견자가 공유했어도 내 잠금은 안 풀림).
   // 진짜 판정은 서버가 접속 직후 보내는 gate 메시지(handleServerMessage)이며,
@@ -327,10 +336,30 @@
     formEl.hidden = true;
   }
 
+  // [기능 변경] 최초 위치 공유는 GPS로만 강제하고, 재공유(위치 다시 공유하기)
+  // 부터는 장소 검색으로만 하도록 바꾼다 — 처음엔 실제 위치를 즉시 실측해
+  // 전달하는 게 우선이고, 이후 보정은 발견자가 직접 짚어주는 장소가 GPS
+  // 콜드스타트/오차보다 믿을 만하다는 판단. searchLocationToggleBtn(수동 토글)은
+  // 이제 두 상태 어디서도 쓰이지 않아 항상 숨긴다.
+  function applyLocationGateMode() {
+    if (searchLocationToggleBtn) searchLocationToggleBtn.hidden = true;
+    if (!locationAlreadyShared) {
+      if (shareLocationBtn) shareLocationBtn.hidden = false;
+      if (locationSearchBox) locationSearchBox.hidden = true;
+    } else {
+      if (shareLocationBtn) shareLocationBtn.hidden = true;
+      if (locationSearchBox) {
+        locationSearchBox.hidden = false;
+        if (locationSearchInput) locationSearchInput.focus();
+      }
+    }
+  }
+
   function showLocationGate() {
     if (locationGate) locationGate.hidden = false;
     if (emergencyPanel) emergencyPanel.hidden = true;
     hideChatInput();
+    applyLocationGateMode();
   }
 
   function showEmergencyPanel() {
@@ -487,7 +516,10 @@
   // showLocationGate()와 달리 채팅을 막지 않는다.
   if (resendLocationBtn) {
     resendLocationBtn.addEventListener("click", function () {
-      if (locationGate) locationGate.hidden = !locationGate.hidden;
+      if (!locationGate) return;
+      locationGate.hidden = !locationGate.hidden;
+      // 다시 열 때마다 현재 공유 여부에 맞는 모드(이 시점엔 항상 재공유 모드)를 반영한다.
+      if (!locationGate.hidden) applyLocationGateMode();
     });
   }
 
@@ -497,13 +529,6 @@
   // 대신 하고(GET /api/place-search), 프론트는 결과 목록만 받아 보여준다.
   // [주의] 아래는 기능 확인용 최소 마크업/스타일이다. 디자인은 "3주차_프론트
   // 추가구현 요청.md"에 정리된 요청대로 다시 만들어야 한다.
-  const searchLocationToggleBtn = document.getElementById("searchLocationToggleBtn");
-  const locationSearchBox = document.getElementById("locationSearchBox");
-  const locationSearchInput = document.getElementById("locationSearchInput");
-  const locationSearchBtn = document.getElementById("locationSearchBtn");
-  const locationSearchResults = document.getElementById("locationSearchResults");
-  const locationSearchStatus = document.getElementById("locationSearchStatus");
-
   if (searchLocationToggleBtn && locationSearchBox) {
     searchLocationToggleBtn.addEventListener("click", function () {
       locationSearchBox.hidden = !locationSearchBox.hidden;
